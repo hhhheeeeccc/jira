@@ -1,0 +1,1201 @@
+     1→/* ============================================
+     2→   Jira Project Management Plugin - Styles
+     3→   Arabic RTL Interface - Mattermost Theme
+     4→   ============================================ */
+     5→
+     6→/* Font stack matching Mattermost */
+     7→:root {
+     8→    --mm-primary: #166EE1;
+     9→    --mm-primary-hover: #1264C7;
+    10→    --mm-sidebar-bg: #1b1b2f;
+    11→    --mm-sidebar-hover: rgba(255, 255, 255, 0.08);
+    12→    --mm-sidebar-active: rgba(22, 110, 225, 0.2);
+    13→    --mm-sidebar-text: rgba(255, 255, 255, 0.72);
+    14→    --mm-sidebar-text-active: #ffffff;
+    15→    --mm-bg: #f0f2f5;
+    16→    --mm-surface: #ffffff;
+    17→    --mm-border: #e0e0e0;
+    18→    --mm-text: #333333;
+    19→    --mm-text-secondary: #6b7280;
+    20→    --mm-text-muted: #9ca3af;
+    21→    --mm-danger: #e74c3c;
+    22→    --mm-danger-hover: #c0392b;
+    23→    --mm-success: #10b981;
+    24→    --mm-warning: #f59e0b;
+    25→    --mm-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+    26→    --mm-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    27→    --mm-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
+    28→    --mm-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+    29→    --mm-radius: 8px;
+    30→    --mm-radius-sm: 4px;
+    31→    --mm-radius-lg: 12px;
+    32→    --mm-transition: 150ms ease;
+    33→    --sidebar-width: 280px;
+    34→    --priority-low: #10b981;
+    35→    --priority-medium: #3b82f6;
+    36→    --priority-high: #f59e0b;
+    37→    --priority-critical: #e74c3c;
+    38→}
+    39→
+    40→* {
+    41→    box-sizing: border-box;
+    42→    margin: 0;
+    43→    padding: 0;
+    44→}
+    45→
+    46→/* ============================================
+    47→   Plugin Root Layout
+    48→   ============================================ */
+    49→.plugin-root {
+    50→    direction: rtl;
+    51→    text-align: right;
+    52→    font-family: 'Open Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    53→    font-size: 14px;
+    54→    color: var(--mm-text);
+    55→    display: flex;
+    56→    height: 100%;
+    57→    width: 100%;
+    58→    background: var(--mm-bg);
+    59→    line-height: 1.5;
+    60→}
+    61→
+    62→/* ============================================
+    63→   Sidebar
+    64→   ============================================ */
+    65→.plugin-sidebar {
+    66→    width: var(--sidebar-width);
+    67→    min-width: var(--sidebar-width);
+    68→    background: var(--mm-sidebar-bg);
+    69→    display: flex;
+    70→    flex-direction: column;
+    71→    height: 100%;
+    72→    overflow: hidden;
+    73→    user-select: none;
+    74→}
+    75→
+    76→.plugin-sidebar__header {
+    77→    padding: 20px 16px 12px;
+    78→    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    79→}
+    80→
+    81→.plugin-sidebar__title {
+    82→    color: var(--mm-sidebar-text-active);
+    83→    font-size: 16px;
+    84→    font-weight: 700;
+    85→    margin-bottom: 16px;
+    86→    display: flex;
+    87→    align-items: center;
+    88→    gap: 8px;
+    89→}
+    90→
+    91→.plugin-sidebar__title svg {
+    92→    width: 20px;
+    93→    height: 20px;
+    94→    flex-shrink: 0;
+    95→}
+    96→
+    97→.btn-create-project {
+    98→    width: 100%;
+    99→    padding: 8px 12px;
+   100→    background: var(--mm-primary);
+   101→    color: #ffffff;
+   102→    border: none;
+   103→    border-radius: var(--mm-radius-sm);
+   104→    font-size: 13px;
+   105→    font-weight: 600;
+   106→    cursor: pointer;
+   107→    display: flex;
+   108→    align-items: center;
+   109→    justify-content: center;
+   110→    gap: 6px;
+   111→    transition: background var(--mm-transition);
+   112→    font-family: inherit;
+   113→}
+   114→
+   115→.btn-create-project:hover {
+   116→    background: var(--mm-primary-hover);
+   117→}
+   118→
+   119→.btn-create-project svg {
+   120→    width: 16px;
+   121→    height: 16px;
+   122→}
+   123→
+   124→.plugin-sidebar__projects {
+   125→    flex: 1;
+   126→    overflow-y: auto;
+   127→    padding: 8px 0;
+   128→}
+   129→
+   130→.plugin-sidebar__project-item {
+   131→    display: flex;
+   132→    align-items: center;
+   133→    justify-content: space-between;
+   134→    padding: 10px 16px;
+   135→    cursor: pointer;
+   136→    transition: background var(--mm-transition);
+   137→    border-right: 3px solid transparent;
+   138→}
+   139→
+   140→.plugin-sidebar__project-item:hover {
+   141→    background: var(--mm-sidebar-hover);
+   142→}
+   143→
+   144→.plugin-sidebar__project-item--active {
+   145→    background: var(--mm-sidebar-active);
+   146→    border-right-color: var(--mm-primary);
+   147→}
+   148→
+   149→.plugin-sidebar__project-name {
+   150→    color: var(--mm-sidebar-text);
+   151→    font-size: 14px;
+   152→    font-weight: 500;
+   153→    overflow: hidden;
+   154→    text-overflow: ellipsis;
+   155→    white-space: nowrap;
+   156→    flex: 1;
+   157→}
+   158→
+   159→.plugin-sidebar__project-item--active .plugin-sidebar__project-name {
+   160→    color: var(--mm-sidebar-text-active);
+   161→    font-weight: 600;
+   162→}
+   163→
+   164→.plugin-sidebar__project-badge {
+   165→    background: rgba(255, 255, 255, 0.15);
+   166→    color: var(--mm-sidebar-text);
+   167→    font-size: 11px;
+   168→    font-weight: 600;
+   169→    padding: 2px 8px;
+   170→    border-radius: 10px;
+   171→    min-width: 24px;
+   172→    text-align: center;
+   173→    flex-shrink: 0;
+   174→    margin-right: 8px;
+   175→}
+   176→
+   177→.plugin-sidebar__empty {
+   178→    padding: 24px 16px;
+   179→    text-align: center;
+   180→    color: var(--mm-sidebar-text);
+   181→    font-size: 13px;
+   182→    opacity: 0.6;
+   183→}
+   184→
+   185→/* ============================================
+   186→   Main Content
+   187→   ============================================ */
+   188→.plugin-main {
+   189→    flex: 1;
+   190→    display: flex;
+   191→    flex-direction: column;
+   192→    height: 100%;
+   193→    overflow: hidden;
+   194→}
+   195→
+   196→.plugin-main__welcome {
+   197→    display: flex;
+   198→    flex-direction: column;
+   199→    align-items: center;
+   200→    justify-content: center;
+   201→    height: 100%;
+   202→    color: var(--mm-text-secondary);
+   203→    text-align: center;
+   204→    padding: 40px;
+   205→}
+   206→
+   207→.plugin-main__welcome-icon {
+   208→    width: 80px;
+   209→    height: 80px;
+   210→    color: var(--mm-text-muted);
+   211→    margin-bottom: 20px;
+   212→    opacity: 0.5;
+   213→}
+   214→
+   215→.plugin-main__welcome-title {
+   216→    font-size: 20px;
+   217→    font-weight: 600;
+   218→    color: var(--mm-text);
+   219→    margin-bottom: 8px;
+   220→}
+   221→
+   222→.plugin-main__welcome-desc {
+   223→    font-size: 14px;
+   224→    max-width: 360px;
+   225→    line-height: 1.7;
+   226→}
+   227→
+   228→/* ============================================
+   229→   Project Header
+   230→   ============================================ */
+   231→.plugin-project-header {
+   232→    padding: 20px 24px;
+   233→    background: var(--mm-surface);
+   234→    border-bottom: 1px solid var(--mm-border);
+   235→    flex-shrink: 0;
+   236→}
+   237→
+   238→.plugin-project-header__top {
+   239→    display: flex;
+   240→    align-items: flex-start;
+   241→    justify-content: space-between;
+   242→    margin-bottom: 12px;
+   243→}
+   244→
+   245→.plugin-project-header__info {
+   246→    flex: 1;
+   247→}
+   248→
+   249→.plugin-project-header__name {
+   250→    font-size: 20px;
+   251→    font-weight: 700;
+   252→    color: var(--mm-text);
+   253→    margin-bottom: 4px;
+   254→}
+   255→
+   256→.plugin-project-header__desc {
+   257→    font-size: 13px;
+   258→    color: var(--mm-text-secondary);
+   259→    line-height: 1.5;
+   260→}
+   261→
+   262→.plugin-project-header__actions {
+   263→    display: flex;
+   264→    gap: 8px;
+   265→    flex-shrink: 0;
+   266→    margin-right: 16px;
+   267→}
+   268→
+   269→.btn-outline {
+   270→    padding: 7px 14px;
+   271→    background: transparent;
+   272→    color: var(--mm-text-secondary);
+   273→    border: 1px solid var(--mm-border);
+   274→    border-radius: var(--mm-radius-sm);
+   275→    font-size: 13px;
+   276→    font-weight: 500;
+   277→    cursor: pointer;
+   278→    display: flex;
+   279→    align-items: center;
+   280→    gap: 6px;
+   281→    transition: all var(--mm-transition);
+   282→    font-family: inherit;
+   283→}
+   284→
+   285→.btn-outline:hover {
+   286→    background: var(--mm-bg);
+   287→    color: var(--mm-text);
+   288→    border-color: var(--mm-text-muted);
+   289→}
+   290→
+   291→.btn-outline svg {
+   292→    width: 15px;
+   293→    height: 15px;
+   294→}
+   295→
+   296→.btn-danger-outline {
+   297→    padding: 7px 14px;
+   298→    background: transparent;
+   299→    color: var(--mm-danger);
+   300→    border: 1px solid var(--mm-danger);
+   301→    border-radius: var(--mm-radius-sm);
+   302→    font-size: 13px;
+   303→    font-weight: 500;
+   304→    cursor: pointer;
+   305→    display: flex;
+   306→    align-items: center;
+   307→    gap: 6px;
+   308→    transition: all var(--mm-transition);
+   309→    font-family: inherit;
+   310→}
+   311→
+   312→.btn-danger-outline:hover {
+   313→    background: var(--mm-danger);
+   314→    color: #ffffff;
+   315→}
+   316→
+   317→.btn-danger-outline svg {
+   318→    width: 15px;
+   319→    height: 15px;
+   320→}
+   321→
+   322→.plugin-project-header__stats {
+   323→    display: flex;
+   324→    align-items: center;
+   325→    gap: 20px;
+   326→}
+   327→
+   328→.plugin-project-header__stat {
+   329→    display: flex;
+   330→    align-items: center;
+   331→    gap: 6px;
+   332→    font-size: 13px;
+   333→    color: var(--mm-text-secondary);
+   334→}
+   335→
+   336→.plugin-project-header__stat svg {
+   337→    width: 15px;
+   338→    height: 15px;
+   339→    color: var(--mm-text-muted);
+   340→}
+   341→
+   342→.plugin-project-header__stat-value {
+   343→    font-weight: 600;
+   344→    color: var(--mm-text);
+   345→}
+   346→
+   347→.plugin-project-header__avatars {
+   348→    display: flex;
+   349→    align-items: center;
+   350→    gap: 0;
+   351→}
+   352→
+   353→.plugin-project-header__avatar {
+   354→    width: 28px;
+   355→    height: 28px;
+   356→    border-radius: 50%;
+   357→    background: var(--mm-primary);
+   358→    color: #ffffff;
+   359→    font-size: 11px;
+   360→    font-weight: 700;
+   361→    display: flex;
+   362→    align-items: center;
+   363→    justify-content: center;
+   364→    border: 2px solid var(--mm-surface);
+   365→    margin-left: -8px;
+   366→    cursor: default;
+   367→}
+   368→
+   369→.plugin-project-header__avatar:first-child {
+   370→    margin-left: 0;
+   371→}
+   372→
+   373→.plugin-project-header__avatar-more {
+   374→    background: var(--mm-bg);
+   375→    color: var(--mm-text-secondary);
+   376→    font-size: 10px;
+   377→    border-color: var(--mm-surface);
+   378→}
+   379→
+   380→/* ============================================
+   381→   Kanban Board
+   382→   ============================================ */
+   383→.kanban-board {
+   384→    flex: 1;
+   385→    display: flex;
+   386→    gap: 16px;
+   387→    padding: 16px 24px;
+   388→    overflow-x: auto;
+   389→    overflow-y: hidden;
+   390→    align-items: flex-start;
+   391→}
+   392→
+   393→/* ============================================
+   394→   Kanban Column
+   395→   ============================================ */
+   396→.kanban-column {
+   397→    min-width: 280px;
+   398→    max-width: 320px;
+   399→    width: 280px;
+   400→    background: var(--mm-bg);
+   401→    border-radius: var(--mm-radius-lg);
+   402→    display: flex;
+   403→    flex-direction: column;
+   404→    max-height: 100%;
+   405→    flex-shrink: 0;
+   406→    transition: box-shadow 200ms ease;
+   407→}
+   408→
+   409→.kanban-column--drag-over {
+   410→    box-shadow: 0 0 0 2px var(--mm-primary), var(--mm-shadow-md);
+   411→    background: rgba(22, 110, 225, 0.04);
+   412→}
+   413→
+   414→.kanban-column__header {
+   415→    padding: 12px 14px 8px;
+   416→    display: flex;
+   417→    align-items: center;
+   418→    justify-content: space-between;
+   419→    flex-shrink: 0;
+   420→}
+   421→
+   422→.kanban-column__color-bar {
+   423→    height: 4px;
+   424→    border-radius: var(--mm-radius-lg) var(--mm-radius-lg) 0 0;
+   425→    flex-shrink: 0;
+   426→}
+   427→
+   428→.kanban-column__title-group {
+   429→    display: flex;
+   430→    align-items: center;
+   431→    gap: 8px;
+   432→}
+   433→
+   434→.kanban-column__title {
+   435→    font-size: 13px;
+   436→    font-weight: 700;
+   437→    color: var(--mm-text);
+   438→}
+   439→
+   440→.kanban-column__count {
+   441→    background: rgba(0, 0, 0, 0.08);
+   442→    color: var(--mm-text-secondary);
+   443→    font-size: 11px;
+   444→    font-weight: 700;
+   445→    padding: 1px 8px;
+   446→    border-radius: 10px;
+   447→    min-width: 22px;
+   448→    text-align: center;
+   449→}
+   450→
+   451→.kanban-column__tasks {
+   452→    flex: 1;
+   453→    overflow-y: auto;
+   454→    padding: 4px 10px 10px;
+   455→    min-height: 60px;
+   456→    display: flex;
+   457→    flex-direction: column;
+   458→    gap: 8px;
+   459→}
+   460→
+   461→.kanban-column__empty {
+   462→    display: flex;
+   463→    align-items: center;
+   464→    justify-content: center;
+   465→    padding: 24px 16px;
+   466→    color: var(--mm-text-muted);
+   467→    font-size: 13px;
+   468→    text-align: center;
+   469→    border: 2px dashed var(--mm-border);
+   470→    border-radius: var(--mm-radius);
+   471→    margin: 4px 4px;
+   472→}
+   473→
+   474→.kanban-column__footer {
+   475→    padding: 8px 10px 12px;
+   476→    flex-shrink: 0;
+   477→}
+   478→
+   479→.btn-add-task {
+   480→    width: 100%;
+   481→    padding: 7px 12px;
+   482→    background: transparent;
+   483→    color: var(--mm-text-secondary);
+   484→    border: none;
+   485→    border-radius: var(--mm-radius-sm);
+   486→    font-size: 13px;
+   487→    font-weight: 500;
+   488→    cursor: pointer;
+   489→    display: flex;
+   490→    align-items: center;
+   491→    justify-content: center;
+   492→    gap: 6px;
+   493→    transition: all var(--mm-transition);
+   494→    font-family: inherit;
+   495→}
+   496→
+   497→.btn-add-task:hover {
+   498→    background: rgba(0, 0, 0, 0.06);
+   499→    color: var(--mm-text);
+   500→}
+   501→
+   502→.btn-add-task svg {
+   503→    width: 14px;
+   504→    height: 14px;
+   505→}
+   506→
+   507→/* ============================================
+   508→   Task Card
+   509→   ============================================ */
+   510→.task-card {
+   511→    background: var(--mm-surface);
+   512→    border: 1px solid var(--mm-border);
+   513→    border-radius: var(--mm-radius);
+   514→    padding: 12px;
+   515→    cursor: grab;
+   516→    transition: box-shadow var(--mm-transition), transform var(--mm-transition);
+   517→    position: relative;
+   518→}
+   519→
+   520→.task-card:hover {
+   521→    box-shadow: var(--mm-shadow-md);
+   522→}
+   523→
+   524→.task-card:active {
+   525→    cursor: grabbing;
+   526→}
+   527→
+   528→.task-card--dragging {
+   529→    opacity: 0.5;
+   530→    box-shadow: var(--mm-shadow-lg);
+   531→    transform: rotate(2deg);
+   532→}
+   533→
+   534→.task-card__title {
+   535→    font-size: 14px;
+   536→    font-weight: 600;
+   537→    color: var(--mm-text);
+   538→    margin-bottom: 8px;
+   539→    line-height: 1.4;
+   540→    word-break: break-word;
+   541→}
+   542→
+   543→.task-card__meta {
+   544→    display: flex;
+   545→    align-items: center;
+   546→    flex-wrap: wrap;
+   547→    gap: 8px;
+   548→}
+   549→
+   550→.task-card__priority {
+   551→    font-size: 11px;
+   552→    font-weight: 700;
+   553→    padding: 2px 8px;
+   554→    border-radius: 10px;
+   555→    display: inline-flex;
+   556→    align-items: center;
+   557→    gap: 4px;
+   558→}
+   559→
+   560→.task-card__priority--low {
+   561→    background: rgba(16, 185, 129, 0.12);
+   562→    color: #059669;
+   563→}
+   564→
+   565→.task-card__priority--medium {
+   566→    background: rgba(59, 130, 246, 0.12);
+   567→    color: #2563eb;
+   568→}
+   569→
+   570→.task-card__priority--high {
+   571→    background: rgba(245, 158, 11, 0.12);
+   572→    color: #d97706;
+   573→}
+   574→
+   575→.task-card__priority--critical {
+   576→    background: rgba(231, 76, 60, 0.12);
+   577→    color: #c0392b;
+   578→}
+   579→
+   580→.task-card__assignee {
+   581→    display: flex;
+   582→    align-items: center;
+   583→    gap: 5px;
+   584→    margin-right: auto;
+   585→}
+   586→
+   587→.task-card__assignee-avatar {
+   588→    width: 20px;
+   589→    height: 20px;
+   590→    border-radius: 50%;
+   591→    background: var(--mm-primary);
+   592→    color: #ffffff;
+   593→    font-size: 9px;
+   594→    font-weight: 700;
+   595→    display: flex;
+   596→    align-items: center;
+   597→    justify-content: center;
+   598→    flex-shrink: 0;
+   599→}
+   600→
+   601→.task-card__assignee-name {
+   602→    font-size: 12px;
+   603→    color: var(--mm-text-secondary);
+   604→    max-width: 80px;
+   605→    overflow: hidden;
+   606→    text-overflow: ellipsis;
+   607→    white-space: nowrap;
+   608→}
+   609→
+   610→.task-card__due {
+   611→    display: flex;
+   612→    align-items: center;
+   613→    gap: 4px;
+   614→    font-size: 12px;
+   615→    color: var(--mm-text-muted);
+   616→}
+   617→
+   618→.task-card__due svg {
+   619→    width: 13px;
+   620→    height: 13px;
+   621→    flex-shrink: 0;
+   622→}
+   623→
+   624→.task-card__due--overdue {
+   625→    color: var(--mm-danger);
+   626→}
+   627→
+   628→.task-card__delete {
+   629→    position: absolute;
+   630→    top: 8px;
+   631→    left: 8px;
+   632→    width: 26px;
+   633→    height: 26px;
+   634→    border: none;
+   635→    background: transparent;
+   636→    color: var(--mm-text-muted);
+   637→    border-radius: var(--mm-radius-sm);
+   638→    cursor: pointer;
+   639→    display: flex;
+   640→    align-items: center;
+   641→    justify-content: center;
+   642→    opacity: 0;
+   643→    transition: all var(--mm-transition);
+   644→    padding: 0;
+   645→}
+   646→
+   647→.task-card:hover .task-card__delete {
+   648→    opacity: 1;
+   649→}
+   650→
+   651→.task-card__delete:hover {
+   652→    background: rgba(231, 76, 60, 0.1);
+   653→    color: var(--mm-danger);
+   654→}
+   655→
+   656→.task-card__delete svg {
+   657→    width: 14px;
+   658→    height: 14px;
+   659→}
+   660→
+   661→.task-card__description {
+   662→    font-size: 12px;
+   663→    color: var(--mm-text-muted);
+   664→    margin-bottom: 8px;
+   665→    line-height: 1.4;
+   666→    display: -webkit-box;
+   667→    -webkit-line-clamp: 2;
+   668→    -webkit-box-orient: vertical;
+   669→    overflow: hidden;
+   670→}
+   671→
+   672→/* ============================================
+   673→   Modal / Dialog
+   674→   ============================================ */
+   675→.modal-overlay {
+   676→    position: fixed;
+   677→    top: 0;
+   678→    left: 0;
+   679→    right: 0;
+   680→    bottom: 0;
+   681→    background: rgba(0, 0, 0, 0.5);
+   682→    display: flex;
+   683→    align-items: center;
+   684→    justify-content: center;
+   685→    z-index: 1000;
+   686→    animation: fadeIn 150ms ease;
+   687→}
+   688→
+   689→@keyframes fadeIn {
+   690→    from { opacity: 0; }
+   691→    to { opacity: 1; }
+   692→}
+   693→
+   694→@keyframes slideUp {
+   695→    from { transform: translateY(20px); opacity: 0; }
+   696→    to { transform: translateY(0); opacity: 1; }
+   697→}
+   698→
+   699→.modal-dialog {
+   700→    background: var(--mm-surface);
+   701→    border-radius: var(--mm-radius-lg);
+   702→    box-shadow: var(--mm-shadow-lg);
+   703→    width: 90%;
+   704→    max-width: 480px;
+   705→    max-height: 85vh;
+   706→    overflow-y: auto;
+   707→    animation: slideUp 200ms ease;
+   708→    direction: rtl;
+   709→}
+   710→
+   711→.modal-dialog__header {
+   712→    padding: 20px 24px 0;
+   713→    display: flex;
+   714→    align-items: center;
+   715→    justify-content: space-between;
+   716→}
+   717→
+   718→.modal-dialog__title {
+   719→    font-size: 18px;
+   720→    font-weight: 700;
+   721→    color: var(--mm-text);
+   722→}
+   723→
+   724→.modal-dialog__close {
+   725→    width: 32px;
+   726→    height: 32px;
+   727→    border: none;
+   728→    background: transparent;
+   729→    color: var(--mm-text-muted);
+   730→    border-radius: var(--mm-radius-sm);
+   731→    cursor: pointer;
+   732→    display: flex;
+   733→    align-items: center;
+   734→    justify-content: center;
+   735→    transition: all var(--mm-transition);
+   736→    padding: 0;
+   737→}
+   738→
+   739→.modal-dialog__close:hover {
+   740→    background: var(--mm-bg);
+   741→    color: var(--mm-text);
+   742→}
+   743→
+   744→.modal-dialog__body {
+   745→    padding: 20px 24px;
+   746→}
+   747→
+   748→.modal-dialog__footer {
+   749→    padding: 0 24px 20px;
+   750→    display: flex;
+   751→    gap: 8px;
+   752→    justify-content: flex-start;
+   753→}
+   754→
+   755→/* ============================================
+   756→   Form Elements
+   757→   ============================================ */
+   758→.form-group {
+   759→    margin-bottom: 16px;
+   760→}
+   761→
+   762→.form-group:last-child {
+   763→    margin-bottom: 0;
+   764→}
+   765→
+   766→.form-label {
+   767→    display: block;
+   768→    font-size: 13px;
+   769→    font-weight: 600;
+   770→    color: var(--mm-text);
+   771→    margin-bottom: 6px;
+   772→}
+   773→
+   774→.form-input,
+   775→.form-textarea,
+   776→.form-select {
+   777→    width: 100%;
+   778→    padding: 9px 12px;
+   779→    border: 1px solid var(--mm-border);
+   780→    border-radius: var(--mm-radius-sm);
+   781→    font-size: 14px;
+   782→    font-family: inherit;
+   783→    color: var(--mm-text);
+   784→    background: var(--mm-surface);
+   785→    transition: border-color var(--mm-transition), box-shadow var(--mm-transition);
+   786→    direction: rtl;
+   787→    text-align: right;
+   788→}
+   789→
+   790→.form-input:focus,
+   791→.form-textarea:focus,
+   792→.form-select:focus {
+   793→    outline: none;
+   794→    border-color: var(--mm-primary);
+   795→    box-shadow: 0 0 0 3px rgba(22, 110, 225, 0.15);
+   796→}
+   797→
+   798→.form-input::placeholder,
+   799→.form-textarea::placeholder {
+   800→    color: var(--mm-text-muted);
+   801→}
+   802→
+   803→.form-textarea {
+   804→    resize: vertical;
+   805→    min-height: 80px;
+   806→}
+   807→
+   808→.form-select {
+   809→    cursor: pointer;
+   810→    appearance: none;
+   811→    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+   812→    background-repeat: no-repeat;
+   813→    background-position: left 12px center;
+   814→    padding-left: 32px;
+   815→}
+   816→
+   817→.form-row {
+   818→    display: flex;
+   819→    gap: 12px;
+   820→}
+   821→
+   822→.form-row .form-group {
+   823→    flex: 1;
+   824→}
+   825→
+   826→/* Force date/time inputs to be LTR */
+   827→.form-input[type="date"],
+   828→.form-input[type="time"],
+   829→.form-input[type="datetime-local"] {
+   830→    direction: ltr;
+   831→    text-align: left;
+   832→}
+   833→
+   834→/* ============================================
+   835→   Buttons
+   836→   ============================================ */
+   837→.btn {
+   838→    padding: 9px 18px;
+   839→    border: none;
+   840→    border-radius: var(--mm-radius-sm);
+   841→    font-size: 14px;
+   842→    font-weight: 600;
+   843→    cursor: pointer;
+   844→    display: inline-flex;
+   845→    align-items: center;
+   846→    justify-content: center;
+   847→    gap: 6px;
+   848→    transition: all var(--mm-transition);
+   849→    font-family: inherit;
+   850→    line-height: 1.4;
+   851→}
+   852→
+   853→.btn svg {
+   854→    width: 16px;
+   855→    height: 16px;
+   856→}
+   857→
+   858→.btn-primary {
+   859→    background: var(--mm-primary);
+   860→    color: #ffffff;
+   861→}
+   862→
+   863→.btn-primary:hover {
+   864→    background: var(--mm-primary-hover);
+   865→}
+   866→
+   867→.btn-primary:disabled {
+   868→    background: rgba(22, 110, 225, 0.5);
+   869→    cursor: not-allowed;
+   870→}
+   871→
+   872→.btn-ghost {
+   873→    background: transparent;
+   874→    color: var(--mm-text-secondary);
+   875→}
+   876→
+   877→.btn-ghost:hover {
+   878→    background: var(--mm-bg);
+   879→    color: var(--mm-text);
+   880→}
+   881→
+   882→.btn-sm {
+   883→    padding: 6px 12px;
+   884→    font-size: 13px;
+   885→}
+   886→
+   887→.btn-sm svg {
+   888→    width: 14px;
+   889→    height: 14px;
+   890→}
+   891→
+   892→/* ============================================
+   893→   Members Dialog
+   894→   ============================================ */
+   895→.members-section {
+   896→    margin-bottom: 20px;
+   897→}
+   898→
+   899→.members-section:last-child {
+   900→    margin-bottom: 0;
+   901→}
+   902→
+   903→.members-section__title {
+   904→    font-size: 14px;
+   905→    font-weight: 700;
+   906→    color: var(--mm-text);
+   907→    margin-bottom: 12px;
+   908→    padding-bottom: 8px;
+   909→    border-bottom: 1px solid var(--mm-border);
+   910→}
+   911→
+   912→.member-list {
+   913→    max-height: 200px;
+   914→    overflow-y: auto;
+   915→}
+   916→
+   917→.member-item {
+   918→    display: flex;
+   919→    align-items: center;
+   920→    justify-content: space-between;
+   921→    padding: 8px 4px;
+   922→    border-bottom: 1px solid var(--mm-bg);
+   923→}
+   924→
+   925→.member-item:last-child {
+   926→    border-bottom: none;
+   927→}
+   928→
+   929→.member-item__info {
+   930→    display: flex;
+   931→    align-items: center;
+   932→    gap: 10px;
+   933→}
+   934→
+   935→.member-item__avatar {
+   936→    width: 30px;
+   937→    height: 30px;
+   938→    border-radius: 50%;
+   939→    background: var(--mm-primary);
+   940→    color: #ffffff;
+   941→    font-size: 12px;
+   942→    font-weight: 700;
+   943→    display: flex;
+   944→    align-items: center;
+   945→    justify-content: center;
+   946→    flex-shrink: 0;
+   947→}
+   948→
+   949→.member-item__name {
+   950→    font-size: 14px;
+   951→    color: var(--mm-text);
+   952→    font-weight: 500;
+   953→}
+   954→
+   955→.member-item__username {
+   956→    font-size: 12px;
+   957→    color: var(--mm-text-muted);
+   958→}
+   959→
+   960→.member-item__remove {
+   961→    width: 28px;
+   962→    height: 28px;
+   963→    border: none;
+   964→    background: transparent;
+   965→    color: var(--mm-text-muted);
+   966→    border-radius: var(--mm-radius-sm);
+   967→    cursor: pointer;
+   968→    display: flex;
+   969→    align-items: center;
+   970→    justify-content: center;
+   971→    transition: all var(--mm-transition);
+   972→    padding: 0;
+   973→}
+   974→
+   975→.member-item__remove:hover {
+   976→    background: rgba(231, 76, 60, 0.1);
+   977→    color: var(--mm-danger);
+   978→}
+   979→
+   980→.member-item__remove svg {
+   981→    width: 14px;
+   982→    height: 14px;
+   983→}
+   984→
+   985→.member-checkbox-item {
+   986→    display: flex;
+   987→    align-items: center;
+   988→    gap: 10px;
+   989→    padding: 8px 4px;
+   990→    border-bottom: 1px solid var(--mm-bg);
+   991→    cursor: pointer;
+   992→    transition: background var(--mm-transition);
+   993→}
+   994→
+   995→.member-checkbox-item:last-child {
+   996→    border-bottom: none;
+   997→}
+   998→
+   999→.member-checkbox-item:hover {
+  1000→    background: var(--mm-bg);
+  1001→    border-radius: var(--mm-radius-sm);
+  1002→}
+  1003→
+  1004→.member-checkbox-item input[type="checkbox"] {
+  1005→    width: 16px;
+  1006→    height: 16px;
+  1007→    accent-color: var(--mm-primary);
+  1008→    cursor: pointer;
+  1009→    flex-shrink: 0;
+  1010→}
+  1011→
+  1012→/* ============================================
+  1013→   Loading & Error States
+  1014→   ============================================ */
+  1015→.loading-container {
+  1016→    display: flex;
+  1017→    align-items: center;
+  1018→    justify-content: center;
+  1019→    height: 100%;
+  1020→    flex: 1;
+  1021→}
+  1022→
+  1023→.loading-spinner {
+  1024→    width: 36px;
+  1025→    height: 36px;
+  1026→    border: 3px solid var(--mm-border);
+  1027→    border-top-color: var(--mm-primary);
+  1028→    border-radius: 50%;
+  1029→    animation: spin 600ms linear infinite;
+  1030→}
+  1031→
+  1032→@keyframes spin {
+  1033→    to { transform: rotate(360deg); }
+  1034→}
+  1035→
+  1036→.error-banner {
+  1037→    background: rgba(231, 76, 60, 0.08);
+  1038→    border: 1px solid rgba(231, 76, 60, 0.2);
+  1039→    border-radius: var(--mm-radius);
+  1040→    padding: 12px 16px;
+  1041→    display: flex;
+  1042→    align-items: center;
+  1043→    gap: 10px;
+  1044→    margin: 12px 24px;
+  1045→    color: var(--mm-danger);
+  1046→    font-size: 13px;
+  1047→}
+  1048→
+  1049→.error-banner svg {
+  1050→    width: 18px;
+  1051→    height: 18px;
+  1052→    flex-shrink: 0;
+  1053→}
+  1054→
+  1055→.error-banner__close {
+  1056→    margin-right: auto;
+  1057→    background: none;
+  1058→    border: none;
+  1059→    color: var(--mm-danger);
+  1060→    cursor: pointer;
+  1061→    padding: 2px;
+  1062→    display: flex;
+  1063→    opacity: 0.7;
+  1064→    transition: opacity var(--mm-transition);
+  1065→}
+  1066→
+  1067→.error-banner__close:hover {
+  1068→    opacity: 1;
+  1069→}
+  1070→
+  1071→/* ============================================
+  1072→   Confirm Dialog
+  1073→   ============================================ */
+  1074→.confirm-text {
+  1075→    font-size: 14px;
+  1076→    color: var(--mm-text-secondary);
+  1077→    line-height: 1.6;
+  1078→    text-align: center;
+  1079→    padding: 8px 0;
+  1080→}
+  1081→
+  1082→.btn-danger {
+  1083→    background: var(--mm-danger);
+  1084→    color: #ffffff;
+  1085→}
+  1086→
+  1087→.btn-danger:hover {
+  1088→    background: var(--mm-danger-hover);
+  1089→}
+  1090→
+  1091→/* ============================================
+  1092→   Scrollbar Styles
+  1093→   ============================================ */
+  1094→.plugin-sidebar__projects::-webkit-scrollbar,
+  1095→.kanban-column__tasks::-webkit-scrollbar,
+  1096→.member-list::-webkit-scrollbar,
+  1097→.modal-dialog::-webkit-scrollbar {
+  1098→    width: 6px;
+  1099→}
+  1100→
+  1101→.plugin-sidebar__projects::-webkit-scrollbar-track,
+  1102→.kanban-column__tasks::-webkit-scrollbar-track,
+  1103→.member-list::-webkit-scrollbar-track,
+  1104→.modal-dialog::-webkit-scrollbar-track {
+  1105→    background: transparent;
+  1106→}
+  1107→
+  1108→.plugin-sidebar__projects::-webkit-scrollbar-thumb {
+  1109→    background: rgba(255, 255, 255, 0.15);
+  1110→    border-radius: 3px;
+  1111→}
+  1112→
+  1113→.kanban-column__tasks::-webkit-scrollbar-thumb,
+  1114→.member-list::-webkit-scrollbar-thumb,
+  1115→.modal-dialog::-webkit-scrollbar-thumb {
+  1116→    background: rgba(0, 0, 0, 0.15);
+  1117→    border-radius: 3px;
+  1118→}
+  1119→
+  1120→.kanban-column__tasks::-webkit-scrollbar-thumb:hover,
+  1121→.member-list::-webkit-scrollbar-thumb:hover,
+  1122→.modal-dialog::-webkit-scrollbar-thumb:hover {
+  1123→    background: rgba(0, 0, 0, 0.25);
+  1124→}
+  1125→
+  1126→.kanban-board::-webkit-scrollbar {
+  1127→    height: 6px;
+  1128→}
+  1129→
+  1130→.kanban-board::-webkit-scrollbar-track {
+  1131→    background: transparent;
+  1132→}
+  1133→
+  1134→.kanban-board::-webkit-scrollbar-thumb {
+  1135→    background: rgba(0, 0, 0, 0.12);
+  1136→    border-radius: 3px;
+  1137→}
+  1138→
+  1139→/* ============================================
+  1140→   Drag Overlay
+  1141→   ============================================ */
+  1142→.drag-overlay {
+  1143→    opacity: 0.9;
+  1144→    box-shadow: var(--mm-shadow-lg);
+  1145→    transform: rotate(3deg);
+  1146→    border-radius: var(--mm-radius);
+  1147→}
+  1148→
+  1149→/* ============================================
+  1150→   Responsive
+  1151→   ============================================ */
+  1152→@media (max-width: 768px) {
+  1153→    :root {
+  1154→        --sidebar-width: 60px;
+  1155→    }
+  1156→
+  1157→    .plugin-sidebar__title span,
+  1158→    .plugin-sidebar__project-name,
+  1159→    .plugin-sidebar__project-badge,
+  1160→    .btn-create-project span {
+  1161→        display: none;
+  1162→    }
+  1163→
+  1164→    .plugin-sidebar__header {
+  1165→        padding: 16px 12px;
+  1166→    }
+  1167→
+  1168→    .plugin-sidebar__title {
+  1169→        justify-content: center;
+  1170→        margin-bottom: 12px;
+  1171→    }
+  1172→
+  1173→    .btn-create-project {
+  1174→        padding: 10px;
+  1175→        justify-content: center;
+  1176→    }
+  1177→
+  1178→    .plugin-sidebar__project-item {
+  1179→        justify-content: center;
+  1180→        padding: 12px 8px;
+  1181→    }
+  1182→
+  1183→    .kanban-board {
+  1184→        padding: 12px 12px;
+  1185→        gap: 12px;
+  1186→    }
+  1187→
+  1188→    .kanban-column {
+  1189→        min-width: 250px;
+  1190→        width: 250px;
+  1191→    }
+  1192→
+  1193→    .plugin-project-header {
+  1194→        padding: 16px;
+  1195→    }
+  1196→
+  1197→    .plugin-project-header__stats {
+  1198→        flex-wrap: wrap;
+  1199→        gap: 12px;
+  1200→    }
+  1201→}

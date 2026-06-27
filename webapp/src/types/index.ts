@@ -37,10 +37,8 @@ export interface Task {
 export interface MattermostUser {
     id: string;
     username: string;
-    first_name: string;
-    last_name: string;
-    nickname: string;
-    position: string;
+    display_name: string;
+    email: string;
 }
 
 export const KANBAN_COLUMNS = [

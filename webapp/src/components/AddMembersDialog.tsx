@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, UserMinus, UserPlus } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
@@ -10,12 +10,33 @@ export const AddMembersDialog: React.FC = () => {
         mattermostUsers,
         setShowAddMembersDialog,
         setProjectMembers,
+        setMattermostUsers,
         setError,
     } = useStore();
 
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
     const [removingUserId, setRemovingUserId] = useState<string | null>(null);
     const [adding, setAdding] = useState(false);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+
+    // Load Mattermost users when dialog opens
+    useEffect(() => {
+        const loadUsers = async () => {
+            setLoadingUsers(true);
+            try {
+                const users = await fetch('/plugins/com.mattermost.plugin.jira/api/v1/users').then(r => {
+                    if (!r.ok) throw new Error('فشل تحميل المستخدمين');
+                    return r.json();
+                });
+                setMattermostUsers(Array.isArray(users) ? users : []);
+            } catch (err: any) {
+                console.error('Failed to load users:', err);
+            } finally {
+                setLoadingUsers(false);
+            }
+        };
+        loadUsers();
+    }, [setMattermostUsers]);
 
     if (!selectedProject) return null;
 
@@ -123,9 +144,7 @@ export const AddMembersDialog: React.FC = () => {
                             <div className="members-section__title">إضافة أعضاء</div>
                             <div className="member-list">
                                 {availableUsers.map((user) => {
-                                    const displayName = user.first_name && user.last_name
-                                        ? `${user.first_name} ${user.last_name}`
-                                        : user.nickname || user.username;
+                                    const displayName = user.display_name || user.username;
                                     const isChecked = selectedUserIds.includes(user.id);
                                     return (
                                         <label
@@ -137,7 +156,7 @@ export const AddMembersDialog: React.FC = () => {
                                                 checked={isChecked}
                                                 onChange={() => toggleUser(user.id)}
                                             />
-                                            <div className="member-item__avatar" style={{ width: 26, height: 26, fontSize: 10 }}>
+                                        <div className="member-item__avatar" style={{ width: 26, height: 26, fontSize: 10 }}>
                                                 {displayName.substring(0, 2).toUpperCase()}
                                             </div>
                                             <div>

@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/hhhheeeeccc/jira/server/store"
-	"github.com/mattermost/mattermost/server/v8/public/model"
-	"github.com/mattermost/mattermost/server/v8/public/plugin"
+	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/mattermost/mattermost-server/v6/plugin"
 )
 
 const (
@@ -21,10 +21,10 @@ const (
 // Plugin is the core implementation registered with Mattermost.
 type Plugin struct {
 	plugin.MattermostPlugin
-	store    *store.Store
-	version  string
+	store     *store.Store
+	version   string
 	buildDate string
-	commit   string
+	commit    string
 }
 
 // SetVersion stores the build-time version variable.
@@ -42,22 +42,25 @@ func NewPlugin() *Plugin {
 }
 
 // OnActivate is called by Mattermost when the plugin is activated.
-func (p *Plugin) OnActivate(api plugin.API) error {
-	api.LogInfo("Jira Project Management plugin activating", "version", p.version)
+func (p *Plugin) OnActivate() error {
+	p.API.LogInfo("Jira Project Management plugin activating", "version", p.version)
 
-	pluginPath := api.GetPluginPath()
+	pluginPath, err := p.API.GetBundlePath()
+	if err != nil {
+		return fmt.Errorf("failed to get plugin path: %w", err)
+	}
 	if pluginPath == "" {
 		return fmt.Errorf("plugin path is empty")
 	}
 
 	s, err := store.NewStore(pluginPath)
 	if err != nil {
-		api.LogError("Failed to initialise store", "error", err.Error())
+		p.API.LogError("Failed to initialise store", "error", err.Error())
 		return fmt.Errorf("init store: %w", err)
 	}
 	p.store = s
 
-	api.LogInfo("Jira Project Management plugin activated successfully")
+	p.API.LogInfo("Jira Project Management plugin activated successfully")
 	return nil
 }
 
@@ -226,8 +229,8 @@ func (p *Plugin) handleGetProject(w http.ResponseWriter, r *http.Request, id str
 
 	// Enrich members with Mattermost user info.
 	for _, m := range members {
-		user := p.API.GetUser(m.UserID)
-		if user != nil {
+		user, appErr := p.API.GetUser(m.UserID)
+		if appErr == nil && user != nil {
 			m.Username = user.Username
 			m.DisplayName = user.GetDisplayName(model.ShowNicknameFullName)
 		}
@@ -272,8 +275,8 @@ func (p *Plugin) handleGetMembers(w http.ResponseWriter, r *http.Request, projec
 	}
 
 	for _, m := range members {
-		user := p.API.GetUser(m.UserID)
-		if user != nil {
+		user, appErr := p.API.GetUser(m.UserID)
+		if appErr == nil && user != nil {
 			m.Username = user.Username
 			m.DisplayName = user.GetDisplayName(model.ShowNicknameFullName)
 		}
@@ -284,7 +287,7 @@ func (p *Plugin) handleGetMembers(w http.ResponseWriter, r *http.Request, projec
 
 func (p *Plugin) handleAddMembers(w http.ResponseWriter, r *http.Request, projectID string) {
 	var body struct {
-		MemberIDs []string `json:"memberIds"`
+		MemberIDs []string `json:"member_ids"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -337,12 +340,12 @@ func (p *Plugin) handleListTasks(w http.ResponseWriter, r *http.Request, project
 
 func (p *Plugin) handleCreateTask(w http.ResponseWriter, r *http.Request, projectID string, userID string) {
 	var body struct {
-		Title      string `json:"title"`
+		Title       string `json:"title"`
 		Description string `json:"description"`
-		DueDate    string `json:"dueDate"`
-		DueTime    string `json:"dueTime"`
-		Priority   string `json:"priority"`
-		AssigneeID string `json:"assigneeId"`
+		DueDate     string `json:"due_date"`
+		DueTime     string `json:"due_time"`
+		Priority    string `json:"priority"`
+		AssigneeID  string `json:"assignee_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -392,23 +395,23 @@ func (p *Plugin) handleUpdateTask(w http.ResponseWriter, r *http.Request, taskID
 		return
 	}
 
-	// Translate JSON camelCase keys to snake_case column names.
+	// Translate JSON keys to column names.
 	updates := make(map[string]interface{})
 	keyMap := map[string]string{
 		"title":       "title",
 		"description": "description",
-		"dueDate":     "due_date",
-		"dueTime":     "due_time",
+		"due_date":    "due_date",
+		"due_time":    "due_time",
 		"priority":    "priority",
 		"status":      "status",
-		"sortOrder":   "sort_order",
-		"assigneeId":  "assignee_id",
+		"sort_order":  "sort_order",
+		"assignee_id": "assignee_id",
 	}
 
 	for jsonKey, col := range keyMap {
 		if v, ok := body[jsonKey]; ok {
-			// Convert sortOrder to int.
-			if jsonKey == "sortOrder" {
+			// Convert sort_order to int.
+			if jsonKey == "sort_order" {
 				switch val := v.(type) {
 				case float64:
 					updates[col] = int(val)
@@ -455,15 +458,18 @@ func (p *Plugin) handleDeleteTask(w http.ResponseWriter, r *http.Request, taskID
 // ========================================================================
 
 func (p *Plugin) handleGetUsers(w http.ResponseWriter, r *http.Request) {
-	// Paginate through all users. Page size 200 is the Mattermost API maximum.
+	// Paginate through all users.
 	var users []*model.User
 	page := 0
 	perPage := 200
 
 	for {
-		batch, err := p.API.GetUsers(page*perPage, perPage, "")
-		if err != nil {
-			p.API.LogError("Failed to get users", "error", err.Error())
+		batch, appErr := p.API.GetUsers(&model.UserGetOptions{
+			Page:    page,
+			PerPage: perPage,
+		})
+		if appErr != nil {
+			p.API.LogError("Failed to get users", "error", appErr.Error())
 			writeError(w, http.StatusInternalServerError, "failed to get users")
 			return
 		}
@@ -478,7 +484,7 @@ func (p *Plugin) handleGetUsers(w http.ResponseWriter, r *http.Request) {
 	type userView struct {
 		ID          string `json:"id"`
 		Username    string `json:"username"`
-		DisplayName string `json:"displayName"`
+		DisplayName string `json:"display_name"`
 		Email       string `json:"email"`
 	}
 
