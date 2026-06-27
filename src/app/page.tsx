@@ -86,12 +86,20 @@ export default function Home() {
     [setSelectedProject]
   );
 
-  // Refresh selected project
-  const refreshProject = useCallback(() => {
+  // Refresh selected project and sidebar counts
+  const refreshProject = useCallback(async () => {
     if (selectedProject) {
-      selectProject(selectedProject.id);
+      await selectProject(selectedProject.id);
     }
-  }, [selectedProject, selectProject]);
+    // Also refresh projects list to update sidebar counts
+    try {
+      const res = await fetch('/api/projects');
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data);
+      }
+    } catch { /* silent */ }
+  }, [selectedProject, selectProject, setProjects]);
 
   // Delete project
   const handleDeleteProject = async (e: React.MouseEvent, projectId: string) => {
@@ -102,6 +110,9 @@ export default function Home() {
       });
       if (!res.ok) throw new Error('فشل في حذف المشروع');
       removeProjectFromList(projectId);
+      if (selectedProject?.id === projectId) {
+        setSelectedProject(null);
+      }
       toast.success('تم حذف المشروع');
     } catch {
       toast.error('فشل في حذف المشروع');

@@ -78,7 +78,7 @@ export function TaskCard({ task, onDelete }: TaskCardProps) {
                   {task.assignee.name.charAt(0)}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-[11px] text-slate-500 max-w-[60px] truncate">
+              <span className="text-[11px] text-slate-500 max-w-[100px] truncate">
                 {task.assignee.name}
               </span>
             </div>
