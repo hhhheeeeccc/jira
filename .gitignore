@@ -7,3 +7,5 @@ webapp/dist/
 webapp/node_modules/
 .env
 *.exe
+node_modules/
+webapp/bun.lock
