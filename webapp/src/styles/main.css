@@ -44,19 +44,80 @@
 }
 
 /* ============================================
+   Overlay - Full screen panel on top of Mattermost
+   ============================================ */
+.plugin-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    animation: plugin-fade-in 150ms ease;
+}
+
+@keyframes plugin-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.plugin-overlay__panel {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: var(--mm-bg);
+    display: flex;
+    flex-direction: column;
+    animation: plugin-slide-in 200ms ease;
+}
+
+@keyframes plugin-slide-in {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.plugin-overlay__close {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 10001;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 150ms ease;
+}
+
+.plugin-overlay__close:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+/* ============================================
    Plugin Root Layout
    ============================================ */
 .plugin-root {
-    direction: rtl;
-    text-align: right;
-    font-family: 'Open Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    direction: ltr;
+    text-align: left;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-size: 14px;
     color: var(--mm-text);
     display: flex;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     width: 100%;
     background: var(--mm-bg);
     line-height: 1.5;
+    overflow: hidden;
 }
 
 /* ============================================
