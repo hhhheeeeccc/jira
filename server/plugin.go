@@ -14,13 +14,17 @@ import (
 )
 
 const (
-        pluginID = "com.workspace.plugin.jira"
+        pluginID       = "com.workspace.plugin.jira"
+        botUsername     = "jira.project.bot"
+        botDisplayName = "Jira Project Bot"
+        botDescription = "System bot for Jira Project Management plugin notifications"
 )
 
 // Plugin is the core implementation registered with Mattermost.
 type Plugin struct {
         plugin.MattermostPlugin
         store     *store.Store
+        botUserID string
         version   string
         buildDate string
         commit    string
@@ -40,6 +44,32 @@ func NewPlugin() *Plugin {
         return &Plugin{}
 }
 
+// ensureBot creates or finds the bot user and stores its ID.
+func (p *Plugin) ensureBot() error {
+        // Try to find existing bot by username
+        if user, appErr := p.API.GetUserByUsername(botUsername); appErr == nil && user != nil {
+                p.botUserID = user.Id
+                p.API.LogInfo("Bot user found", "user_id", user.Id)
+                return nil
+        }
+
+        // Create the bot
+        bot := &model.Bot{
+                Username:    botUsername,
+                DisplayName: botDisplayName,
+                Description: botDescription,
+        }
+        createdBot, appErr := p.API.CreateBot(bot)
+        if appErr != nil {
+                p.API.LogError("Failed to create bot", "error", appErr.Error())
+                return fmt.Errorf("create bot: %w", appErr)
+        }
+
+        p.botUserID = createdBot.UserId
+        p.API.LogInfo("Bot user created", "user_id", createdBot.UserId)
+        return nil
+}
+
 // OnActivate is called by Mattermost when the plugin is activated.
 func (p *Plugin) OnActivate() error {
         p.API.LogInfo("Jira Project Management plugin activating", "version", p.version)
@@ -50,13 +80,18 @@ func (p *Plugin) OnActivate() error {
                 dbDir = *config.FileSettings.Directory
         }
 
-
         s, err := store.NewStore(dbDir)
         if err != nil {
                 p.API.LogError("Failed to initialise store", "error", err.Error())
                 return fmt.Errorf("init store: %w", err)
         }
         p.store = s
+
+        // Create/find bot user for notifications
+        if err := p.ensureBot(); err != nil {
+                p.API.LogError("Failed to ensure bot user", "error", err.Error())
+                // Don't fail activation, just log
+        }
 
         p.API.LogInfo("Jira Project Management plugin activated successfully")
         return nil
@@ -410,6 +445,15 @@ func (p *Plugin) handleCreateTask(w http.ResponseWriter, r *http.Request, projec
                 writeError(w, http.StatusInternalServerError, "failed to create task")
                 return
         }
+
+        // Send notification from bot to assignee
+        if assigneeID != "" {
+                projectName := projectID
+                if proj, err := p.store.GetProject(projectID); err == nil && proj != nil {
+                        projectName = proj.Name
+                }
+                go p.sendTaskNotification(assigneeID, userID, projectName, body.Title, priority)
+        }
         p.broadcastProjectUpdate(projectID)
         writeJSON(w, http.StatusCreated, task.ToJSON())
 }
@@ -660,49 +704,52 @@ func (p *Plugin) broadcastProjectUpdate(projectID string) {
         )
 }
 
-// sendTaskNotification sends a DM to the assignee when a task is assigned to them.
+// sendTaskNotification sends a DM from the bot to the assignee when a task is assigned.
 func (p *Plugin) sendTaskNotification(assigneeID, creatorID, projectName, taskTitle, taskPriority string) {
-        if assigneeID == "" || assigneeID == creatorID {
-                return // no notification if self-assigned or no assignee
-        }
-
-        // Get assignee user
-        assignee, appErr := p.API.GetUser(assigneeID)
-        if appErr != nil {
-                p.API.LogError("Failed to get assignee for notification", "error", appErr.Error())
+        if assigneeID == "" || p.botUserID == "" {
                 return
         }
 
-        // Get creator user
-        creatorName := "Someone"
-        creator, appErr := p.API.GetUser(creatorID)
-        if appErr == nil && creator != nil {
-                creatorName = creator.GetDisplayName(model.ShowNicknameFullName)
-        }
-
-        // Create DM channel between system (use creator) and assignee
-        channel, appErr := p.API.GetDirectChannel(creatorID, assigneeID)
+        // Get DM channel between bot and assignee
+        channel, appErr := p.API.GetDirectChannel(p.botUserID, assigneeID)
         if appErr != nil {
                 p.API.LogError("Failed to get DM channel for notification", "error", appErr.Error())
                 return
         }
 
-        priorityEmoji := "📌"
+        // Get creator name for the message
+        creatorName := "System"
+        if creatorID != "" {
+                creator, appErr := p.API.GetUser(creatorID)
+                if appErr == nil && creator != nil {
+                        creatorName = creator.GetDisplayName(model.ShowNicknameFullName)
+                }
+        }
+
+        priorityLabel := "Medium"
+        priorityIcon := "📌"
         switch taskPriority {
         case "low":
-                priorityEmoji = "🟢"
+                priorityLabel = "Low"
+                priorityIcon = "🟢"
         case "high":
-                priorityEmoji = "🟡"
+                priorityLabel = "High"
+                priorityIcon = "🟡"
         case "critical":
-                priorityEmoji = "🔴"
+                priorityLabel = "Critical"
+                priorityIcon = "🔴"
         }
 
         post := &model.Post{
                 ChannelId: channel.Id,
-                UserId:    creatorID,
+                UserId:    p.botUserID,
                 Message: fmt.Sprintf(
-                        "%s **New task assigned to you** %s\n\n**Project:** %s\n**Task:** %s\n**Assigned by:** %s",
-                        priorityEmoji, priorityEmoji, projectName, taskTitle, creatorName,
+                        "%s **You have a new task**\n\n"+
+                                "**Project:** %s\n"+
+                                "**Task:** %s\n"+
+                                "**Priority:** %s %s\n"+
+                                "**Assigned by:** %s",
+                        priorityIcon, projectName, taskTitle, priorityIcon, priorityLabel, creatorName,
                 ),
         }
 
