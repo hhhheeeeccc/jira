@@ -1,11 +1,11 @@
-# Jira Plugin - إدارة المشاريع لبلاجن Mattermost
+# Jira Plugin - إدارة المشاريع لبلاجن workspace
 
-بلاجن Mattermost لإدارة المشاريع والمهام بأسلوب كانبان (Jira-style).
+بلاجن workspace لإدارة المشاريع والمهام بأسلوب كانبان (Jira-style).
 
 ## الميزات
 
 - **إدارة المشاريع**: إنشاء وحذف المشاريع
-- **إدارة الأعضاء**: إضافة مستخدمي Mattermost كمشاركين في المشاريع
+- **إدارة الأعضاء**: إضافة مستخدمي workspace كمشاركين في المشاريع
 - **إدارة المهام**: إنشاء مهام مع أولوية وتاريخ ومسؤول
 - **كانبان بورد**: 4 أعمدة (الخلفية، قيد التنفيذ، جاري العمل، مكتمل)
 - **سحب وإفلات**: نقل المهام بين الأعمدة
@@ -32,7 +32,7 @@ make server-dev
 make webapp
 ```
 
-## التثبيت على Mattermost
+## التثبيت على workspace
 
 1. شغّل `make dist` لإنشاء ملف `.tar.gz`
 2. ارفع الملف من **System Console > Plugins > Management > Upload Plugin**
@@ -80,4 +80,4 @@ make webapp
 | POST | /projects/{id}/tasks | إنشاء مهمة |
 | PATCH | /tasks/{id} | تحديث مهمة |
 | DELETE | /tasks/{id} | حذف مهمة |
-| GET | /users | مستخدمي Mattermost |
+| GET | /users | مستخدمي workspace |
