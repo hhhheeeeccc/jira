@@ -1,11 +1,9 @@
-dist/
-node_modules/
-*.db
-*.tar.gz
+skills/
+tool-results/
+webapp/node_modules/
 server/dist/
 webapp/dist/
-webapp/node_modules/
-.env
+dist/
+*.db
 *.exe
-node_modules/
-webapp/bun.lock
+.DS_Store
