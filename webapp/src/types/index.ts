@@ -41,11 +41,14 @@ export interface MattermostUser {
     email: string;
 }
 
-export const KANBAN_COLUMNS = [
-    { id: 'backlog', title: 'الخلفية', color: '#6b7280' },
-    { id: 'todo', title: 'قيد التنفيذ', color: '#3b82f6' },
-    { id: 'in_progress', title: 'جاري العمل', color: '#f59e0b' },
-    { id: 'done', title: 'مكتمل', color: '#10b981' },
-] as const;
+export interface KanbanColumn {
+    id: string;
+    project_id: string;
+    title: string;
+    color: string;
+    sort_order: number;
+    created_at: string;
+    updated_at: string;
+}
 
-export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'done';
+export type TaskStatus = string;
