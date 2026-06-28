@@ -5,23 +5,23 @@
 
 /* Font stack matching Mattermost */
 :root {
-    --mm-primary: #166EE1;
-    --mm-primary-hover: #1264C7;
-    --mm-sidebar-bg: #1b1b2f;
-    --mm-sidebar-hover: rgba(255, 255, 255, 0.08);
-    --mm-sidebar-active: rgba(22, 110, 225, 0.2);
-    --mm-sidebar-text: rgba(255, 255, 255, 0.72);
-    --mm-sidebar-text-active: #ffffff;
-    --mm-bg: #f0f2f5;
-    --mm-surface: #ffffff;
-    --mm-border: #e0e0e0;
-    --mm-text: #333333;
-    --mm-text-secondary: #6b7280;
-    --mm-text-muted: #9ca3af;
-    --mm-danger: #e74c3c;
-    --mm-danger-hover: #c0392b;
-    --mm-success: #10b981;
-    --mm-warning: #f59e0b;
+    --mm-primary: var(--button-bg, #00987e);
+    --mm-primary-hover: var(--button-bg, #00987e);
+    --mm-sidebar-bg: var(--sidebar-bg, #1b1b2f);
+    --mm-sidebar-hover: var(--sidebar-text-hover-bg, rgba(255, 255, 255, 0.08));
+    --mm-sidebar-active: var(--sidebar-text-active-border, rgba(22, 110, 225, 0.2));
+    --mm-sidebar-text: var(--sidebar-text, rgba(255, 255, 255, 0.72));
+    --mm-sidebar-text-active: var(--sidebar-text-active-color, #ffffff);
+    --mm-bg: var(--center-channel-color-04, #f0f2f5);
+    --mm-surface: var(--center-channel-bg, #ffffff);
+    --mm-border: var(--center-channel-color-16, #e0e0e0);
+    --mm-text: var(--center-channel-color, #333333);
+    --mm-text-secondary: var(--center-channel-color-72, #6b7280);
+    --mm-text-muted: var(--center-channel-color-56, #9ca3af);
+    --mm-danger: var(--error-text, #e74c3c);
+    --mm-danger-hover: var(--error-text, #c0392b);
+    --mm-success: var(--online-indicator, #10b981);
+    --mm-warning: var(--away-indicator, #f59e0b);
     --mm-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
     --mm-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
     --mm-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
@@ -32,7 +32,7 @@
     --mm-transition: 150ms ease;
     --sidebar-width: 280px;
     --priority-low: #10b981;
-    --priority-medium: #3b82f6;
+    --priority-medium: #00987e;
     --priority-high: #f59e0b;
     --priority-critical: #e74c3c;
 }
@@ -106,16 +106,16 @@
    Plugin Root Layout
    ============================================ */
 .plugin-root {
-    direction: ltr;
-    text-align: left;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    direction: rtl;
+    text-align: start;
+    font-family: 'Effra_Trial_Rg', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-size: 14px;
     color: var(--mm-text);
     display: flex;
     flex: 1;
     min-height: 0;
     width: 100%;
-    background: var(--mm-bg);
+    background: var(--center-channel-bg);
     line-height: 1.5;
     overflow: hidden;
 }
@@ -139,10 +139,17 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.mobile-top-bar {
+    display: none;
+}
+
+.plugin-sidebar-overlay {
+    display: none;
+}
+
 .plugin-sidebar__title {
     color: var(--mm-sidebar-text-active);
     font-size: 16px;
-    font-weight: 700;
     margin-bottom: 16px;
     display: flex;
     align-items: center;
@@ -163,7 +170,6 @@
     border: none;
     border-radius: var(--mm-radius-sm);
     font-size: 13px;
-    font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -203,14 +209,13 @@
 }
 
 .plugin-sidebar__project-item--active {
-    background: var(--mm-sidebar-active);
+    background: #00987e42;
     border-right-color: var(--mm-primary);
 }
 
 .plugin-sidebar__project-name {
     color: var(--mm-sidebar-text);
     font-size: 14px;
-    font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -219,20 +224,18 @@
 
 .plugin-sidebar__project-item--active .plugin-sidebar__project-name {
     color: var(--mm-sidebar-text-active);
-    font-weight: 600;
 }
 
 .plugin-sidebar__project-badge {
     background: rgba(255, 255, 255, 0.15);
     color: var(--mm-sidebar-text);
     font-size: 11px;
-    font-weight: 600;
     padding: 2px 8px;
     border-radius: 10px;
     min-width: 24px;
     text-align: center;
     flex-shrink: 0;
-    margin-right: 8px;
+    margin-inline-end: 8px;
 }
 
 .plugin-sidebar__empty {
@@ -275,7 +278,6 @@
 
 .plugin-main__welcome-title {
     font-size: 20px;
-    font-weight: 600;
     color: var(--mm-text);
     margin-bottom: 8px;
 }
@@ -309,7 +311,6 @@
 
 .plugin-project-header__name {
     font-size: 20px;
-    font-weight: 700;
     color: var(--mm-text);
     margin-bottom: 4px;
 }
@@ -324,7 +325,7 @@
     display: flex;
     gap: 8px;
     flex-shrink: 0;
-    margin-right: 16px;
+    margin-inline-end:5%;
 }
 
 .btn-outline {
@@ -334,7 +335,6 @@
     border: 1px solid var(--mm-border);
     border-radius: var(--mm-radius-sm);
     font-size: 13px;
-    font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -361,7 +361,6 @@
     border: 1px solid var(--mm-danger);
     border-radius: var(--mm-radius-sm);
     font-size: 13px;
-    font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -401,7 +400,6 @@
 }
 
 .plugin-project-header__stat-value {
-    font-weight: 600;
     color: var(--mm-text);
 }
 
@@ -418,7 +416,6 @@
     background: var(--mm-primary);
     color: #ffffff;
     font-size: 11px;
-    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -443,28 +440,26 @@
    ============================================ */
 .kanban-board {
     flex: 1;
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 16px;
-    padding: 16px 24px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    align-items: flex-start;
+    padding: 16px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    align-content: flex-start;
 }
 
 /* ============================================
    Kanban Column
    ============================================ */
 .kanban-column {
-    min-width: 280px;
-    max-width: 320px;
-    width: 280px;
     background: var(--mm-bg);
     border-radius: var(--mm-radius-lg);
     display: flex;
     flex-direction: column;
-    max-height: 100%;
-    flex-shrink: 0;
+    height: calc(100vh - 240px);
     transition: box-shadow 200ms ease;
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .kanban-column--drag-over {
@@ -494,7 +489,6 @@
 
 .kanban-column__title {
     font-size: 13px;
-    font-weight: 700;
     color: var(--mm-text);
 }
 
@@ -502,7 +496,6 @@
     background: rgba(0, 0, 0, 0.08);
     color: var(--mm-text-secondary);
     font-size: 11px;
-    font-weight: 700;
     padding: 1px 8px;
     border-radius: 10px;
     min-width: 22px;
@@ -545,7 +538,6 @@
     border: none;
     border-radius: var(--mm-radius-sm);
     font-size: 13px;
-    font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -594,7 +586,6 @@
 
 .task-card__title {
     font-size: 14px;
-    font-weight: 600;
     color: var(--mm-text);
     margin-bottom: 8px;
     line-height: 1.4;
@@ -610,7 +601,6 @@
 
 .task-card__priority {
     font-size: 11px;
-    font-weight: 700;
     padding: 2px 8px;
     border-radius: 10px;
     display: inline-flex;
@@ -642,7 +632,7 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    margin-right: auto;
+    margin-inline-end: auto;
 }
 
 .task-card__assignee-avatar {
@@ -652,7 +642,6 @@
     background: var(--mm-primary);
     color: #ffffff;
     font-size: 9px;
-    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -757,7 +746,7 @@
     to { transform: translateY(0); opacity: 1; }
 }
 
-.modal-dialog {
+.modal-dialog1 {
     background: var(--mm-surface);
     border-radius: var(--mm-radius-lg);
     box-shadow: var(--mm-shadow-lg);
@@ -769,20 +758,19 @@
     direction: rtl;
 }
 
-.modal-dialog__header {
+.modal-dialog1__header {
     padding: 20px 24px 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
 
-.modal-dialog__title {
+.modal-dialog1__title {
     font-size: 18px;
-    font-weight: 700;
     color: var(--mm-text);
 }
 
-.modal-dialog__close {
+.modal-dialog1__close {
     width: 32px;
     height: 32px;
     border: none;
@@ -797,16 +785,16 @@
     padding: 0;
 }
 
-.modal-dialog__close:hover {
+.modal-dialog1__close:hover {
     background: var(--mm-bg);
     color: var(--mm-text);
 }
 
-.modal-dialog__body {
+.modal-dialog1__body {
     padding: 20px 24px;
 }
 
-.modal-dialog__footer {
+.modal-dialog1__footer {
     padding: 0 24px 20px;
     display: flex;
     gap: 8px;
@@ -827,7 +815,6 @@
 .form-label {
     display: block;
     font-size: 13px;
-    font-weight: 600;
     color: var(--mm-text);
     margin-bottom: 6px;
 }
@@ -875,6 +862,79 @@
     padding-left: 32px;
 }
 
+/* Custom Dropdown for User Selection */
+.custom-select-container {
+    position: relative;
+    width: 100%;
+}
+.custom-select {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--mm-border);
+    border-radius: var(--mm-radius-sm);
+    background: var(--mm-surface);
+    cursor: pointer;
+    min-height: 38px;
+    color: var(--mm-text);
+    font-size: 14px;
+    transition: border-color var(--mm-transition);
+}
+.custom-select:hover {
+    border-color: var(--mm-primary);
+}
+.custom-select-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.custom-select-placeholder {
+    color: var(--mm-text-muted);
+}
+.custom-select-user {
+    display: flex;
+    align-items: center;
+}
+.custom-select-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: var(--mm-surface);
+    border: 1px solid var(--mm-border);
+    border-radius: var(--mm-radius-sm);
+    box-shadow: var(--mm-shadow-lg);
+    z-index: 100;
+    max-height: 200px;
+    overflow-y: auto;
+    direction: rtl;
+}
+.custom-select-option {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background var(--mm-transition);
+}
+.custom-select-option:hover {
+    background: var(--mm-sidebar-hover);
+    color: var(--mm-sidebar-text-active);
+}
+.custom-select-info {
+    display: flex;
+    flex-direction: column;
+}
+.custom-select-name {
+    font-size: 14px;
+}
+.custom-select-username {
+    font-size: 12px;
+    color: var(--mm-text-muted);
+}
+
 .form-row {
     display: flex;
     gap: 12px;
@@ -900,7 +960,6 @@
     border: none;
     border-radius: var(--mm-radius-sm);
     font-size: 14px;
-    font-weight: 600;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -963,7 +1022,6 @@
 
 .members-section__title {
     font-size: 14px;
-    font-weight: 700;
     color: var(--mm-text);
     margin-bottom: 12px;
     padding-bottom: 8px;
@@ -1000,7 +1058,6 @@
     background: var(--mm-primary);
     color: #ffffff;
     font-size: 12px;
-    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1010,7 +1067,6 @@
 .member-item__name {
     font-size: 14px;
     color: var(--mm-text);
-    font-weight: 500;
 }
 
 .member-item__username {
@@ -1114,7 +1170,7 @@
 }
 
 .error-banner__close {
-    margin-right: auto;
+    margin-inline-end: auto;
     background: none;
     border: none;
     color: var(--mm-danger);
@@ -1155,14 +1211,14 @@
 .plugin-sidebar__projects::-webkit-scrollbar,
 .kanban-column__tasks::-webkit-scrollbar,
 .member-list::-webkit-scrollbar,
-.modal-dialog::-webkit-scrollbar {
+.modal-dialog1::-webkit-scrollbar {
     width: 6px;
 }
 
 .plugin-sidebar__projects::-webkit-scrollbar-track,
 .kanban-column__tasks::-webkit-scrollbar-track,
 .member-list::-webkit-scrollbar-track,
-.modal-dialog::-webkit-scrollbar-track {
+.modal-dialog1::-webkit-scrollbar-track {
     background: transparent;
 }
 
@@ -1173,19 +1229,19 @@
 
 .kanban-column__tasks::-webkit-scrollbar-thumb,
 .member-list::-webkit-scrollbar-thumb,
-.modal-dialog::-webkit-scrollbar-thumb {
+.modal-dialog1::-webkit-scrollbar-thumb {
     background: rgba(0, 0, 0, 0.15);
     border-radius: 3px;
 }
 
 .kanban-column__tasks::-webkit-scrollbar-thumb:hover,
 .member-list::-webkit-scrollbar-thumb:hover,
-.modal-dialog::-webkit-scrollbar-thumb:hover {
+.modal-dialog1::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 0, 0, 0.25);
 }
 
 .kanban-board::-webkit-scrollbar {
-    height: 6px;
+    width: 6px;
 }
 
 .kanban-board::-webkit-scrollbar-track {
@@ -1193,8 +1249,8 @@
 }
 
 .kanban-board::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.12);
-    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
 }
 
 /* ============================================
@@ -1211,52 +1267,297 @@
    Responsive
    ============================================ */
 @media (max-width: 768px) {
-    :root {
-        --sidebar-width: 60px;
+    .plugin-root {
+        flex-direction: column;
     }
 
-    .plugin-sidebar__title span,
-    .plugin-sidebar__project-name,
-    .plugin-sidebar__project-badge,
-    .btn-create-project span {
-        display: none;
+    .mobile-top-bar {
+        display: flex;
+        align-items: center;
+        padding: 16px;
+        background: var(--mm-sidebar-bg);
+        color: var(--mm-sidebar-text);
+        gap: 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .mobile-menu-btn {
+        background: transparent;
+        border: none;
+        color: inherit;
+        padding: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .mobile-top-bar__title {
+        font-size: 16px;
+    }
+
+    .plugin-sidebar-overlay {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 9999;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+
+    .plugin-sidebar-overlay.open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .plugin-sidebar {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 280px;
+        max-width: 85vw;
+        height: 100vh;
+        z-index: 10000;
+        transform: translateX(100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: -4px 0 24px rgba(0,0,0,0.5);
+    }
+
+    .plugin-sidebar.open {
+        transform: translateX(0);
     }
 
     .plugin-sidebar__header {
-        padding: 16px 12px;
+        padding: 20px 16px 12px;
     }
 
     .plugin-sidebar__title {
-        justify-content: center;
-        margin-bottom: 12px;
+        margin-bottom: 16px;
     }
 
     .btn-create-project {
-        padding: 10px;
-        justify-content: center;
+        width: 100%;
+        padding: 8px 12px;
     }
 
     .plugin-sidebar__project-item {
-        justify-content: center;
-        padding: 12px 8px;
+        padding: 10px 12px;
     }
 
     .kanban-board {
-        padding: 12px 12px;
+        padding: 12px;
         gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     }
 
     .kanban-column {
-        min-width: 250px;
-        width: 250px;
+        height: calc(100vh - 200px);
     }
 
     .plugin-project-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
         padding: 16px;
     }
 
-    .plugin-project-header__stats {
+    .plugin-project-header__actions {
+        width: 100%;
+        display: flex;
         flex-wrap: wrap;
-        gap: 12px;
+        gap: 8px;
     }
+
+    .plugin-project-header__actions button {
+        flex: 1;
+        min-width: 140px;
+        justify-content: center;
+    }
+}
+
+/* ============================================
+   Enhanced Members Modal
+   ============================================ */
+.members-modal {
+    max-width: 500px !important;
+    width: 100%;
+}
+
+.members-modal__body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px 24px;
+}
+
+.search-box {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+.search-box__icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--mm-text-muted);
+}
+
+.search-box__input {
+    width: 100%;
+    padding: 10px 36px 10px 12px;
+    border: 1px solid var(--mm-border);
+    border-radius: var(--mm-radius);
+    background: var(--mm-bg);
+    color: var(--mm-text);
+    font-size: 14px;
+    transition: var(--mm-transition);
+}
+
+.search-box__input:focus {
+    outline: none;
+    border-color: var(--mm-primary);
+    box-shadow: 0 0 0 3px rgba(0, 152, 126, 0.1);
+    background: var(--mm-surface);
+}
+
+.scrollable-list {
+    max-height: 220px;
+    overflow-y: auto;
+    padding-left: 4px;
+}
+
+.scrollable-list-small {
+    max-height: 140px;
+    overflow-y: auto;
+}
+
+.scrollable-list::-webkit-scrollbar,
+.scrollable-list-small::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollable-list::-webkit-scrollbar-track,
+.scrollable-list-small::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scrollable-list::-webkit-scrollbar-thumb,
+.scrollable-list-small::-webkit-scrollbar-thumb {
+    background: var(--mm-border);
+    border-radius: 4px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 24px;
+    color: var(--mm-text-muted);
+    background: rgba(0,0,0,0.02);
+    border-radius: var(--mm-radius);
+    border: 1px dashed var(--mm-border);
+    font-size: 13px;
+}
+
+.role-badge {
+    background: rgba(0, 152, 126, 0.1);
+    color: var(--mm-primary);
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 12px;
+    margin-right: 8px;
+}
+
+.member-checkbox.hidden {
+    display: none;
+}
+
+.member-checkbox-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: var(--mm-radius);
+    cursor: pointer;
+    transition: var(--mm-transition);
+    border: 1px solid transparent;
+}
+
+.member-checkbox-item:hover {
+    background: var(--mm-bg);
+}
+
+.member-checkbox-item.selected {
+    background: rgba(0, 152, 126, 0.05);
+    border-color: rgba(0, 152, 126, 0.2);
+}
+
+.member-checkbox-item__info {
+    flex: 1;
+    margin-right: 12px;
+}
+
+.member-item__selected-icon {
+    color: var(--mm-primary);
+    margin-right: auto;
+}
+
+/* ============================================
+   Custom Date/Time Input Wrapper
+   ============================================ */
+.date-time-input {
+    position: relative;
+    display: flex;
+    min-height: 40px;
+    align-items: center;
+    padding: 8px 12px;
+    border: 1px solid var(--mm-border);
+    border-radius: 4px;
+    background-color: var(--mm-surface);
+    cursor: pointer;
+    transition: border-color 0.15s ease-in-out;
+    width: 100%;
+}
+
+.date-time-input:hover {
+    border-color: rgba(0,0,0,0.3);
+}
+
+.date-time-input:focus,
+.date-time-input--open {
+    border-color: var(--mm-primary);
+    box-shadow: 0 0 0 1px var(--mm-primary);
+    outline: none;
+}
+
+.date-time-input__label {
+    position: absolute;
+    top: -8px;
+    right: 12px;
+    padding: 0 4px;
+    background: var(--mm-surface);
+    color: var(--mm-text-muted);
+    font-size: 10px;
+}
+
+.date-time-input__icon {
+    flex-shrink: 0;
+    margin-left: 8px;
+    color: var(--mm-text-muted);
+}
+
+.date-time-input__icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.date-time-input__value {
+    overflow: hidden;
+    font-size: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }

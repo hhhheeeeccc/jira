@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, CalendarDays, Clock, Flag, User } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
@@ -12,47 +12,64 @@ const PRIORITY_OPTIONS = [
 ] as const;
 
 export const AddTaskDialog: React.FC = () => {
-    const {
-        selectedProject,
-        projectMembers,
-        showAddTaskDialog,
-        addTaskColumnId,
-        setProjectTasks,
-        setShowAddTaskDialog,
-        setError,
-    } = useStore();
-
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [dueDate, setDueDate] = useState('');
     const [dueTime, setDueTime] = useState('');
     const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
     const [assigneeId, setAssigneeId] = useState<string>('');
+    const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    
+    const dateInputRef = React.useRef<HTMLInputElement>(null);
+    const timeInputRef = React.useRef<HTMLInputElement>(null);
+
+    const {
+        selectedProject,
+        projectMembers,
+        projectColumns,
+        showAddTaskDialog,
+        addTaskColumnId,
+        setShowAddTaskDialog,
+        setProjectTasks,
+        setError,
+    } = useStore();
+
+    // Reset state when dialog opens
+    useEffect(() => {
+        if (showAddTaskDialog) {
+            setTitle('');
+            setDescription('');
+            setDueDate('');
+            setDueTime('');
+            setPriority('medium');
+            setAssigneeId('');
+            setError(null);
+            
+            // Set initial due date to today
+            const today = new Date();
+            setDueDate(today.toISOString().split('T')[0]);
+        }
+    }, [showAddTaskDialog]);
 
     if (!showAddTaskDialog || !selectedProject) return null;
 
     const handleClose = () => {
         setShowAddTaskDialog(false);
-        // Reset form
-        setTitle('');
-        setDescription('');
-        setDueDate('');
-        setDueTime('');
-        setPriority('medium');
-        setAssigneeId('');
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim()) return;
+        
+        const isFormValid = title.trim() && description.trim() && dueDate && dueTime && priority && assigneeId;
+        if (!selectedProject || !isFormValid) return;
 
         setSubmitting(true);
+        setError(null);
         try {
-            // Determine initial status based on assignee and column
             let status: TaskStatus = addTaskColumnId as TaskStatus;
             if (!status) {
-                status = assigneeId ? 'todo' : 'backlog';
+                status = projectColumns.length > 0 ? projectColumns[0].id : 'backlog';
             }
 
             const taskData: any = {
@@ -78,16 +95,16 @@ export const AddTaskDialog: React.FC = () => {
 
     return (
         <div className="modal-overlay" onClick={handleClose}>
-            <div className="modal-dialog" onClick={e => e.stopPropagation()}>
-                <div className="modal-dialog__header">
-                    <h2 className="modal-dialog__title">إضافة مهمة جديدة</h2>
-                    <button className="modal-dialog__close" onClick={handleClose}>
+            <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
+                <div className="modal-dialog1__header">
+                    <h2 className="modal-dialog1__title">إضافة مهمة جديدة</h2>
+                    <button className="modal-dialog1__close" onClick={handleClose}>
                         <X size={18} />
                     </button>
                 </div>
 
                 <form onSubmit={handleSubmit}>
-                    <div className="modal-dialog__body">
+                    <div className="modal-dialog1__body">
                         {/* Title */}
                         <div className="form-group">
                             <label className="form-label">عنوان المهمة *</label>
@@ -104,13 +121,14 @@ export const AddTaskDialog: React.FC = () => {
 
                         {/* Description */}
                         <div className="form-group">
-                            <label className="form-label">الوصف</label>
+                            <label className="form-label">الوصف *</label>
                             <textarea
                                 className="form-textarea"
-                                placeholder="أدخل وصف المهمة (اختياري)"
+                                placeholder="أدخل وصف المهمة"
                                 value={description}
                                 onChange={e => setDescription(e.target.value)}
                                 rows={2}
+                                required
                             />
                         </div>
 
@@ -138,51 +156,114 @@ export const AddTaskDialog: React.FC = () => {
                                     <User size={13} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 4 }} />
                                     المسؤول
                                 </label>
-                                <select
-                                    className="form-select"
-                                    value={assigneeId}
-                                    onChange={e => setAssigneeId(e.target.value)}
-                                >
-                                    <option value="">بدون مسؤول</option>
-                                    {projectMembers.map(member => (
-                                        <option key={member.user_id} value={member.user_id}>
-                                            {member.display_name || member.username}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="custom-select-container">
+                                    <div 
+                                        className="custom-select" 
+                                        onClick={() => setIsAssigneeDropdownOpen(!isAssigneeDropdownOpen)}
+                                    >
+                                        {assigneeId && projectMembers.find(m => m.user_id === assigneeId) ? (
+                                            <div className="custom-select-user">
+                                                <img 
+                                                    src={`/api/v4/users/${assigneeId}/image`} 
+                                                    className="custom-select-avatar" 
+                                                    alt="avatar"
+                                                />
+                                                <span className="custom-select-name" style={{ marginRight: '8px' }}>
+                                                    {projectMembers.find(m => m.user_id === assigneeId)?.display_name || projectMembers.find(m => m.user_id === assigneeId)?.username}
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <span className="custom-select-placeholder">اختر المسؤول...</span>
+                                        )}
+                                    </div>
+                                    
+                                    {isAssigneeDropdownOpen && (
+                                        <>
+                                            <div 
+                                                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} 
+                                                onClick={(e) => { e.stopPropagation(); setIsAssigneeDropdownOpen(false); }} 
+                                            />
+                                            <div className="custom-select-menu">
+                                                {projectMembers.map(member => (
+                                                    <div 
+                                                        key={member.user_id} 
+                                                        className="custom-select-option"
+                                                        onClick={() => {
+                                                            setAssigneeId(member.user_id);
+                                                            setIsAssigneeDropdownOpen(false);
+                                                        }}
+                                                    >
+                                                        <img 
+                                                            src={`/api/v4/users/${member.user_id}/image`} 
+                                                            className="custom-select-avatar" 
+                                                            alt={member.username}
+                                                        />
+                                                        <div className="custom-select-info" style={{ marginRight: '12px' }}>
+                                                            <div className="custom-select-name">{member.display_name || member.username}</div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
                         {/* Date & Time Row */}
-                        <div className="form-row">
+                        <div className="form-row" style={{ marginTop: 8 }}>
                             <div className="form-group">
-                                <label className="form-label">
-                                    <CalendarDays size={13} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 4 }} />
-                                    تاريخ الاستحقاق
-                                </label>
-                                <input
-                                    type="date"
-                                    className="form-input"
-                                    value={dueDate}
-                                    onChange={e => setDueDate(e.target.value)}
-                                />
+                                <div
+                                    className="date-time-input"
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => {
+                                        try { dateInputRef.current?.showPicker(); } catch (e) { dateInputRef.current?.focus(); }
+                                    }}
+                                    style={{ border: !dueDate ? '1px solid var(--mm-error-text)' : undefined }}
+                                >
+                                    <span className="date-time-input__label">تاريخ الاستحقاق *</span>
+                                    <span className="date-time-input__icon"><CalendarDays size={16} /></span>
+                                    <span className="date-time-input__value" style={{ color: dueDate ? 'var(--mm-text)' : 'var(--mm-text-muted)' }}>
+                                        {dueDate || 'حدد التاريخ...'}
+                                    </span>
+                                    <input
+                                        ref={dateInputRef}
+                                        type="date"
+                                        value={dueDate}
+                                        onChange={e => setDueDate(e.target.value)}
+                                        style={{ width: 0, height: 0, padding: 0, border: 'none', opacity: 0, position: 'absolute' }}
+                                    />
+                                </div>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">
-                                    <Clock size={13} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 4 }} />
-                                    الوقت
-                                </label>
-                                <input
-                                    type="time"
-                                    className="form-input"
-                                    value={dueTime}
-                                    onChange={e => setDueTime(e.target.value)}
-                                />
+                                <div
+                                    className="date-time-input"
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => {
+                                        try { timeInputRef.current?.showPicker(); } catch (e) { timeInputRef.current?.focus(); }
+                                    }}
+                                    style={{ border: !dueTime ? '1px solid var(--mm-error-text)' : undefined }}
+                                >
+                                    <span className="date-time-input__label">الوقت *</span>
+                                    <span className="date-time-input__icon"><Clock size={16} /></span>
+                                    <span className="date-time-input__value" style={{ color: dueTime ? 'var(--mm-text)' : 'var(--mm-text-muted)' }}>
+                                        {dueTime || 'حدد الوقت...'}
+                                    </span>
+                                    <input
+                                        ref={timeInputRef}
+                                        type="time"
+                                        value={dueTime}
+                                        onChange={e => setDueTime(e.target.value)}
+                                        style={{ width: 0, height: 0, padding: 0, border: 'none', opacity: 0, position: 'absolute' }}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="modal-dialog__footer">
+                    <div className="modal-dialog1__footer">
                         <button
                             type="button"
                             className="btn btn-ghost"
@@ -194,7 +275,7 @@ export const AddTaskDialog: React.FC = () => {
                         <button
                             type="submit"
                             className="btn btn-primary"
-                            disabled={!title.trim() || submitting}
+                            disabled={!(title.trim() && description.trim() && dueDate && dueTime && priority && assigneeId) || submitting}
                         >
                             {submitting ? 'جارٍ الإنشاء...' : 'إنشاء مهمة'}
                         </button>

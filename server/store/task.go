@@ -113,6 +113,16 @@ func (s *Store) CreateTask(projectID, title, description, dueDate, dueTime, prio
         }, nil
 }
 
+// GetTaskProjectID returns the project_id for a given task
+func (s *Store) GetTaskProjectID(taskID string) (string, error) {
+	var projectID string
+	err := s.db.QueryRow(`SELECT project_id FROM tasks WHERE id = ?`, taskID).Scan(&projectID)
+	if err != nil {
+		return "", fmt.Errorf("get task project_id: %w", err)
+	}
+	return projectID, nil
+}
+
 // GetTasksByProject returns every task for a project, ordered by sort_order.
 func (s *Store) GetTasksByProject(projectID string) ([]*Task, error) {
         rows, err := s.db.Query(

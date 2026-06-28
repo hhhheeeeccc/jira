@@ -6,5 +6,19 @@ declare global {
     }
 }
 
+class Plugin {
+    initialize(registry: any, store: any) {
+        registerPlugin(registry);
+
+        registry.registerWebSocketEventHandler(
+            'custom_com.workspace.plugin.jira_project_updated',
+            (msg: any) => {
+                const data = msg.data || {};
+                window.dispatchEvent(new CustomEvent('jira_project_updated', { detail: data }));
+            }
+        );
+    }
+}
+
 // Mattermost plugin registration
-window.registerPlugin('com.mattermost.plugin.jira', registerPlugin);
+window.registerPlugin('com.workspace.plugin.jira', new Plugin());

@@ -1,7 +1,7 @@
 {
-  "id": "com.mattermost.plugin.jira",
-  "name": "Jira Project Management",
-  "description": "Jira-like project management with Kanban boards - integrated with Mattermost users",
+  "id": "com.workspace.plugin.jira",
+  "name": "إدارة مشاريع جيرا",
+  "description": "إدارة مشاريع بأسلوب جيرا مع لوحات كانبان - مدمجة مع مستخدمي النظام",
   "version": "1.0.0",
   "min_server_version": "6.0.0",
   "server": {
@@ -13,15 +13,15 @@
     "bundle_path": "webapp/dist/main.js"
   },
   "settings_schema": {
-    "header": "Jira Plugin Settings",
+    "header": "إعدادات إضافة جيرا",
     "footer": "",
     "settings": [
       {
         "key": "EnableAdminOnly",
-        "display_name": "Restrict project creation to admins only",
+        "display_name": "قصر إنشاء المشاريع على المسؤولين فقط",
         "type": "bool",
         "default": false,
-        "help_text": "When enabled, only system admins can create projects"
+        "help_text": "عند التفعيل، سيتمكن مسؤولو النظام فقط من إنشاء المشاريع الجديدة"
       }
     ]
   }

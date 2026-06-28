@@ -11,17 +11,22 @@ import {
     DragOverEvent,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { Plus } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
-import { KANBAN_COLUMNS, type Task, type TaskStatus } from '../types';
+import { type Task, type TaskStatus } from '../types';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskCard } from './TaskCard';
 
 export const KanbanBoard: React.FC = () => {
     const {
+        selectedProject,
         projectTasks,
         projectMembers,
+        projectColumns,
         setProjectTasks,
+        setProjectColumns,
+        setShowAddColumnDialog,
         setError,
     } = useStore();
 
@@ -44,6 +49,11 @@ export const KanbanBoard: React.FC = () => {
 
     const getColumnTaskIds = (columnId: string): string[] => {
         return getColumnTasks(columnId).map(t => t.id);
+    };
+
+    const handleAddColumn = () => {
+        if (!selectedProject) return;
+        setShowAddColumnDialog(true);
     };
 
     const handleDragStart = (event: DragStartEvent) => {
@@ -132,7 +142,7 @@ export const KanbanBoard: React.FC = () => {
                 onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
             >
-                {KANBAN_COLUMNS.map(column => (
+                {projectColumns.map(column => (
                     <KanbanColumn
                         key={column.id}
                         id={column.id}
@@ -143,14 +153,43 @@ export const KanbanBoard: React.FC = () => {
                     />
                 ))}
 
-                <DragOverlay>
-                    {activeTask && (
-                        <TaskCard
-                            task={activeTask}
-                            projectMembers={projectMembers}
-                            isOverlay
+                <div className="add-column-container" style={{ minWidth: 280, padding: '0 8px' }}>
+                    <button 
+                        onClick={handleAddColumn}
+                        style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            padding: '12px',
+                            background: 'var(--mm-surface)',
+                            border: '1px dashed var(--mm-border)',
+                            borderRadius: 'var(--mm-radius)',
+                            color: 'var(--mm-text-muted)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--mm-text-muted)'}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--mm-border)'}
+                    >
+                        <Plus size={16} />
+                        <span>إضافة عمود</span>
+                    </button>
+                </div>
+
+                <DragOverlay dropAnimation={{
+                    duration: 250,
+                    easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+                }}>
+                    {activeTask ? (
+                        <TaskCard 
+                            task={activeTask} 
+                            projectMembers={projectMembers} 
+                            isOverlay 
+                            columnColor={projectColumns.find(c => c.id === (activeOverColumnId || activeTask.status))?.color}
                         />
-                    )}
+                    ) : null}
                 </DragOverlay>
             </DndContext>
         </div>

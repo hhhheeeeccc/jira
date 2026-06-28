@@ -83,14 +83,68 @@ func (s *Store) migrate() error {
 			assignee_id TEXT,
 			created_at  DATETIME NOT NULL DEFAULT (datetime('now')),
 			updated_at  DATETIME NOT NULL DEFAULT (datetime('now')),
-			FOREIGN KEY (project_id)  REFERENCES projects(id)            ON DELETE CASCADE,
-			FOREIGN KEY (assignee_id) REFERENCES project_members(user_id) ON DELETE SET NULL
+			FOREIGN KEY (project_id)  REFERENCES projects(id)            ON DELETE CASCADE
 		)`,
+		`CREATE TABLE IF NOT EXISTS project_columns (
+			id          TEXT PRIMARY KEY,
+			project_id  TEXT NOT NULL,
+			title       TEXT NOT NULL,
+			color       TEXT,
+			sort_order  INTEGER NOT NULL DEFAULT 0,
+			created_at  DATETIME NOT NULL DEFAULT (datetime('now')),
+			updated_at  DATETIME NOT NULL DEFAULT (datetime('now')),
+			FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+		)`,
+		`UPDATE tasks SET status = project_id || '-backlog' WHERE status = 'backlog'`,
+		`UPDATE tasks SET status = project_id || '-todo' WHERE status = 'todo'`,
+		`UPDATE tasks SET status = project_id || '-in_progress' WHERE status = 'in_progress'`,
+		`UPDATE tasks SET status = project_id || '-done' WHERE status = 'done'`,
 	}
 
 	for _, q := range queries {
 		if _, err := s.db.Exec(q); err != nil {
 			return fmt.Errorf("migration error: %w", err)
+		}
+	}
+
+	// One-time migration for dynamic columns
+	rows, err := s.db.Query(`
+		SELECT p.id 
+		FROM projects p 
+		LEFT JOIN project_columns pc ON p.id = pc.project_id 
+		WHERE pc.id IS NULL
+	`)
+	if err == nil {
+		defer rows.Close()
+		var projectIDs []string
+		for rows.Next() {
+			var pid string
+			if err := rows.Scan(&pid); err == nil {
+				projectIDs = append(projectIDs, pid)
+			}
+		}
+		
+		for _, pid := range projectIDs {
+			// create default columns
+			columns := []struct{ id, title, color string }{
+				{pid + "-backlog", "الخلفية", "#64748b"},
+				{pid + "-todo", "قيد التنفيذ", "#3b82f6"},
+				{pid + "-in_progress", "جاري العمل", "#f59e0b"},
+				{pid + "-completed", "مكتمل", "#10b981"},
+			}
+			
+			for i, c := range columns {
+				s.db.Exec(`
+					INSERT INTO project_columns (id, project_id, title, color, sort_order)
+					VALUES (?, ?, ?, ?, ?)
+				`, c.id, pid, c.title, c.color, i)
+			}
+			
+			// update existing tasks
+			s.db.Exec(`UPDATE tasks SET status = ? WHERE project_id = ? AND status = 'backlog'`, pid+"-backlog", pid)
+			s.db.Exec(`UPDATE tasks SET status = ? WHERE project_id = ? AND status = 'todo'`, pid+"-todo", pid)
+			s.db.Exec(`UPDATE tasks SET status = ? WHERE project_id = ? AND status = 'in_progress'`, pid+"-in_progress", pid)
+			s.db.Exec(`UPDATE tasks SET status = ? WHERE project_id = ? AND status = 'completed'`, pid+"-completed", pid)
 		}
 	}
 

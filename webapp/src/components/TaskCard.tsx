@@ -17,10 +17,11 @@ interface TaskCardProps {
     task: Task;
     projectMembers: ProjectMember[];
     isOverlay?: boolean;
+    columnColor?: string;
 }
 
-export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOverlay = false }) => {
-    const { selectedProject, setProjectTasks, setError } = useStore();
+export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOverlay = false, columnColor }) => {
+    const { selectedProject, setProjectTasks, setError, setDeleteTaskInfo } = useStore();
     const [deleting, setDeleting] = React.useState(false);
 
     const {
@@ -44,6 +45,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
             transform: CSS.Transform.toString(transform),
             transition,
             opacity: isDragging ? 0.4 : 1,
+            borderRight: columnColor ? `4px solid ${columnColor}` : undefined,
         };
 
     const assignee = task.assignee_id
@@ -52,18 +54,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
 
     const handleDelete = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!selectedProject) return;
-
-        setDeleting(true);
-        try {
-            await api.deleteTask(task.id);
-            const tasks = await api.getProjectTasks(selectedProject.id);
-            setProjectTasks(Array.isArray(tasks) ? tasks : []);
-        } catch (err: any) {
-            setError(err.message || 'فشل حذف المهمة');
-        } finally {
-            setDeleting(false);
-        }
+        setDeleteTaskInfo(task);
     };
 
     const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
@@ -124,9 +115,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
 
                 {assignee && (
                     <div className="task-card__assignee">
-                        <div className="task-card__assignee-avatar">
-                            {(assignee.display_name || assignee.username).substring(0, 1).toUpperCase()}
-                        </div>
+                        <img
+                            className="task-card__assignee-avatar"
+                            src={`/api/v4/users/${assignee.user_id}/image`}
+                            alt={assignee.display_name || assignee.username}
+                            style={{ objectFit: 'cover' }}
+                        />
                         <span className="task-card__assignee-name">
                             {assignee.display_name || assignee.username}
                         </span>

@@ -2,13 +2,40 @@ import React from 'react';
 import {PluginRoot} from './components/PluginRoot';
 
 // Global toggle state for plugin visibility
-let pluginVisible = false;
+let pluginVisible = localStorage.getItem('jira_plugin_visible') === 'true' || window.location.hash === '#jira';
+
+// Sync initial hash if localStorage was true but hash wasn't there
+if (pluginVisible && window.location.hash !== '#jira') {
+    window.history.replaceState(null, '', window.location.pathname + window.location.search + '#jira');
+}
+
 const toggleListeners: Array<() => void> = [];
 
-export function togglePlugin() {
-    pluginVisible = !pluginVisible;
+export function togglePlugin(forceState?: boolean) {
+    if (typeof forceState === 'boolean') {
+        pluginVisible = forceState;
+    } else {
+        pluginVisible = !pluginVisible;
+    }
+    
+    localStorage.setItem('jira_plugin_visible', String(pluginVisible));
+    
+    if (pluginVisible && window.location.hash !== '#jira') {
+        window.history.pushState(null, '', window.location.pathname + window.location.search + '#jira');
+    } else if (!pluginVisible && window.location.hash === '#jira') {
+        window.history.pushState(null, '', window.location.pathname + window.location.search);
+    }
+    
     toggleListeners.forEach((fn) => fn());
 }
+
+// Listen to browser Back/Forward buttons
+window.addEventListener('popstate', () => {
+    const shouldBeVisible = window.location.hash === '#jira';
+    if (pluginVisible !== shouldBeVisible) {
+        togglePlugin(shouldBeVisible);
+    }
+});
 
 export function usePluginVisible(): [boolean, () => void] {
     const [, forceUpdate] = React.useReducer((x: number) => x + 1, 0);
@@ -50,5 +77,7 @@ export const registerPlugin = (registry: any) => {
         </svg>,
         // Action: toggle the plugin panel
         () => togglePlugin(),
+        "مشاريع جيرا",
+        "فتح إدارة المشاريع (جيرا)"
     );
 };

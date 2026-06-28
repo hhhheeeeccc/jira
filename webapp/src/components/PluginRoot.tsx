@@ -1,11 +1,18 @@
 import React, { useEffect, useCallback } from 'react';
-import { LayoutDashboard, Plus, Users, Trash2, AlertCircle, X } from 'lucide-react';
+import { LayoutDashboard, Plus, Users, Trash2, AlertCircle, X, Menu } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
 import type { Project } from '../types';
 import { CreateProjectDialog } from './CreateProjectDialog';
 import { AddMembersDialog } from './AddMembersDialog';
 import { AddTaskDialog } from './AddTaskDialog';
+import { AddColumnDialog } from './AddColumnDialog';
+import { EditColumnDialog } from './EditColumnDialog';
+import { DeleteColumnDialog } from './DeleteColumnDialog';
+import { DeleteProjectDialog } from './DeleteProjectDialog';
+import { DeleteTaskDialog } from './DeleteTaskDialog';
+import { RemoveMemberDialog } from './RemoveMemberDialog';
+import { AlertDialog } from './AlertDialog';
 import { KanbanBoard } from './KanbanBoard';
 import { usePluginVisible } from '../register';
 import '../styles/main.css';
@@ -16,35 +23,45 @@ export const PluginRoot: React.FC = () => {
     const {
         projects,
         selectedProject,
+        currentUser,
         projectMembers,
         projectTasks,
+        projectColumns,
         loading,
         error,
         showCreateProjectDialog,
         showAddMembersDialog,
         setProjects,
+        setCurrentUser,
         setSelectedProject,
         setProjectMembers,
         setProjectTasks,
+        setProjectColumns,
         setLoading,
         setError,
         setShowCreateProjectDialog,
         setShowAddMembersDialog,
+        setDeleteProjectInfo,
     } = useStore();
 
-    // Load projects on mount
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
+
+    // Load projects and current user on mount
     const loadProjects = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
             const data = await api.getProjects();
             setProjects(Array.isArray(data) ? data : []);
+            
+            const me = await api.getMe();
+            setCurrentUser({ id: me.id, isAdmin: me.is_admin });
         } catch (err: any) {
             setError(err.message || 'Failed to load projects');
         } finally {
             setLoading(false);
         }
-    }, [setProjects, setLoading, setError]);
+    }, [setProjects, setCurrentUser, setLoading, setError]);
 
     useEffect(() => {
         if (visible) {
@@ -52,6 +69,7 @@ export const PluginRoot: React.FC = () => {
         } else {
             setSelectedProject(null);
             setProjectTasks([]);
+            setProjectColumns([]);
             setProjectMembers([]);
         }
     }, [visible]);
@@ -67,38 +85,67 @@ export const PluginRoot: React.FC = () => {
         return () => window.removeEventListener('keydown', handleKey);
     }, [visible, toggle]);
 
+    // WebSocket sync listener
+    useEffect(() => {
+        const handleRefresh = (e: any) => {
+            const pid = e.detail?.project_id;
+            loadProjects();
+
+            if (selectedProject && selectedProject.id === pid) {
+                api.getProjectMembers(pid).then(m => {
+                    setProjectMembers(Array.isArray(m) ? m : []);
+                }).catch(() => {});
+
+                api.getProjectTasks(pid).then(t => {
+                    setProjectTasks(Array.isArray(t) ? t : []);
+                }).catch(() => {});
+                
+                api.getProjectColumns(pid).then(c => {
+                    setProjectColumns(Array.isArray(c) ? c : []);
+                }).catch(() => {});
+            }
+        };
+
+        window.addEventListener('jira_project_updated', handleRefresh);
+        return () => window.removeEventListener('jira_project_updated', handleRefresh);
+    }, [selectedProject, loadProjects, setProjectMembers, setProjectTasks, setProjectColumns]);
+
+    // Kick user out if they are removed from the currently selected project
+    useEffect(() => {
+        if (!selectedProject || loading) return;
+        const stillExists = projects.some(p => p.id === selectedProject.id);
+        if (!stillExists) {
+            setSelectedProject(null);
+            setProjectMembers([]);
+            setProjectTasks([]);
+            setError("لقد تم إزالتك من هذا المشروع، أو تم حذفه.");
+        }
+    }, [projects, selectedProject, loading, setSelectedProject, setProjectMembers, setProjectTasks, setError]);
+
     const loadProjectData = useCallback(async (project: Project) => {
         setSelectedProject(project);
         try {
-            const [membersData, tasksData] = await Promise.all([
+            const [membersData, tasksData, columnsData] = await Promise.all([
                 api.getProjectMembers(project.id),
                 api.getProjectTasks(project.id),
+                api.getProjectColumns(project.id),
             ]);
             setProjectMembers(Array.isArray(membersData) ? membersData : []);
             setProjectTasks(Array.isArray(tasksData) ? tasksData : []);
+            setProjectColumns(Array.isArray(columnsData) ? columnsData : []);
         } catch (err: any) {
             setError(err.message || 'Failed to load project data');
         }
-    }, [setSelectedProject, setProjectMembers, setProjectTasks, setError]);
+    }, [setSelectedProject, setProjectMembers, setProjectTasks, setProjectColumns, setError]);
 
     const handleSelectProject = (project: Project) => {
         loadProjectData(project);
     };
 
-    const handleDeleteProject = async () => {
+    const handleDeleteProject = async (e: React.MouseEvent) => {
+        e.stopPropagation();
         if (!selectedProject) return;
-        if (!window.confirm(`Delete project "${selectedProject.name}"? All tasks will be removed.`)) return;
-
-        setLoading(true);
-        try {
-            await api.deleteProject(selectedProject.id);
-            setSelectedProject(null);
-            await loadProjects();
-        } catch (err: any) {
-            setError(err.message || 'Failed to delete project');
-        } finally {
-            setLoading(false);
-        }
+        setDeleteProjectInfo(selectedProject);
     };
 
     const getInitials = (name: string) => {
@@ -127,26 +174,34 @@ export const PluginRoot: React.FC = () => {
                 </button>
 
                 <div className="plugin-root">
+                    {/* Mobile Sidebar Overlay */}
+                    <div 
+                        className={`plugin-sidebar-overlay ${isMobileSidebarOpen ? 'open' : ''}`} 
+                        onClick={() => setIsMobileSidebarOpen(false)}
+                    />
+
                     {/* Sidebar */}
-                    <aside className="plugin-sidebar">
+                    <aside className={`plugin-sidebar ${isMobileSidebarOpen ? 'open' : ''}`}>
                         <div className="plugin-sidebar__header">
                             <div className="plugin-sidebar__title">
                                 <LayoutDashboard />
-                                <span>Jira PM</span>
+                                <span>مشاريع جيرا</span>
                             </div>
-                            <button
-                                className="btn-create-project"
-                                onClick={() => setShowCreateProjectDialog(true)}
-                            >
-                                <Plus />
-                                <span>New Project</span>
-                            </button>
+                            {currentUser?.isAdmin && (
+                                <button
+                                    className="btn-create-project"
+                                    onClick={() => setShowCreateProjectDialog(true)}
+                                >
+                                    <Plus />
+                                    <span>مشروع جديد</span>
+                                </button>
+                            )}
                         </div>
 
                         <div className="plugin-sidebar__projects">
                             {projects.length === 0 && !loading && (
                                 <div className="plugin-sidebar__empty">
-                                    No projects yet
+                                    لا توجد مشاريع بعد
                                 </div>
                             )}
                             {projects.map((project) => (
@@ -155,7 +210,10 @@ export const PluginRoot: React.FC = () => {
                                     className={`plugin-sidebar__project-item ${
                                         selectedProject?.id === project.id ? 'plugin-sidebar__project-item--active' : ''
                                     }`}
-                                    onClick={() => handleSelectProject(project)}
+                                    onClick={() => {
+                                        handleSelectProject(project);
+                                        setIsMobileSidebarOpen(false);
+                                    }}
                                 >
                                     <span className="plugin-sidebar__project-name">
                                         {project.name}
@@ -172,6 +230,13 @@ export const PluginRoot: React.FC = () => {
 
                     {/* Main Content */}
                     <main className="plugin-main">
+                        <div className="mobile-top-bar">
+                            <button className="mobile-menu-btn" onClick={() => setIsMobileSidebarOpen(true)}>
+                                <Menu size={20} />
+                            </button>
+                            <span className="mobile-top-bar__title">مشاريع جيرا</span>
+                        </div>
+
                         {error && (
                             <div className="error-banner">
                                 <AlertCircle />
@@ -189,9 +254,9 @@ export const PluginRoot: React.FC = () => {
                         ) : !selectedProject ? (
                             <div className="plugin-main__welcome">
                                 <LayoutDashboard className="plugin-main__welcome-icon" />
-                                <div className="plugin-main__welcome-title">Project Management</div>
+                                <div className="plugin-main__welcome-title">إدارة المشاريع</div>
                                 <div className="plugin-main__welcome-desc">
-                                    Select a project from the sidebar or create a new one to start organizing your tasks on a Kanban board
+                                    اختر مشروعاً من القائمة الجانبية أو قم بإنشاء مشروع جديد للبدء في تنظيم مهامك على لوحة كانبان
                                 </div>
                             </div>
                         ) : (
@@ -215,14 +280,14 @@ export const PluginRoot: React.FC = () => {
                                                 onClick={() => setShowAddMembersDialog(true)}
                                             >
                                                 <Users />
-                                                <span>Members</span>
+                                                <span>الأعضاء</span>
                                             </button>
                                             <button
                                                 className="btn-danger-outline"
                                                 onClick={handleDeleteProject}
                                             >
                                                 <Trash2 />
-                                                <span>Delete</span>
+                                                <span>حذف</span>
                                             </button>
                                         </div>
                                     </div>
@@ -233,25 +298,26 @@ export const PluginRoot: React.FC = () => {
                                             <span className="plugin-project-header__stat-value">
                                                 {projectMembers.length}
                                             </span>
-                                            <span>members</span>
+                                            <span>عضو</span>
                                         </div>
                                         <div className="plugin-project-header__stat">
                                             <LayoutDashboard size={15} />
                                             <span className="plugin-project-header__stat-value">{totalTasks}</span>
-                                            <span>tasks</span>
+                                            <span>مهمة</span>
                                         </div>
 
                                         {/* Avatars */}
                                         {projectMembers.length > 0 && (
                                             <div className="plugin-project-header__avatars">
                                                 {projectMembers.slice(0, 5).map((member) => (
-                                                    <div
+                                                    <img
                                                         key={member.id}
                                                         className="plugin-project-header__avatar"
                                                         title={member.display_name || member.username}
-                                                    >
-                                                        {getInitials(member.display_name || member.username)}
-                                                    </div>
+                                                        src={`/api/v4/users/${member.user_id}/image`}
+                                                        alt={member.display_name || member.username}
+                                                        style={{ objectFit: 'cover' }}
+                                                    />
                                                 ))}
                                                 {projectMembers.length > 5 && (
                                                     <div className="plugin-project-header__avatar plugin-project-header__avatar-more">
@@ -273,6 +339,13 @@ export const PluginRoot: React.FC = () => {
                     {showCreateProjectDialog && <CreateProjectDialog />}
                     {showAddMembersDialog && <AddMembersDialog />}
                     <AddTaskDialog />
+                    <AddColumnDialog />
+                    <EditColumnDialog />
+                    <DeleteColumnDialog />
+                    <DeleteProjectDialog />
+                    <DeleteTaskDialog />
+                    <RemoveMemberDialog />
+                    <AlertDialog />
                 </div>
             </div>
         </div>

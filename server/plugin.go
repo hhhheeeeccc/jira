@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,7 +14,7 @@ import (
 )
 
 const (
-	pluginID = "com.mattermost.plugin.jira"
+	pluginID = "com.workspace.plugin.jira"
 )
 
 // Plugin is the core implementation registered with Mattermost.
@@ -45,15 +44,14 @@ func NewPlugin() *Plugin {
 func (p *Plugin) OnActivate() error {
 	p.API.LogInfo("Jira Project Management plugin activating", "version", p.version)
 
-	pluginPath, err := p.API.GetBundlePath()
-	if err != nil {
-		return fmt.Errorf("failed to get plugin path: %w", err)
-	}
-	if pluginPath == "" {
-		return fmt.Errorf("plugin path is empty")
+	config := p.API.GetConfig()
+	dbDir := "."
+	if config != nil && config.FileSettings.Directory != nil && *config.FileSettings.Directory != "" {
+		dbDir = *config.FileSettings.Directory
 	}
 
-	s, err := store.NewStore(pluginPath)
+
+	s, err := store.NewStore(dbDir)
 	if err != nil {
 		p.API.LogError("Failed to initialise store", "error", err.Error())
 		return fmt.Errorf("init store: %w", err)
@@ -87,19 +85,18 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 
 	path := r.URL.Path
 
-	// Strip the plugin prefix so we can match the remainder.
-	prefix := "/plugins/" + pluginID
-	if !strings.HasPrefix(path, prefix) {
-		writeError(w, http.StatusNotFound, "not found")
+
+
+	// /api/v1/me
+	if match(path, "/api/v1/me") && r.Method == http.MethodGet {
+		p.handleGetMe(w, r, userID)
 		return
 	}
-
-	path = strings.TrimPrefix(path, prefix)
 
 	// ---------- Projects ----------
 	switch {
 	case match(path, "/api/v1/projects") && r.Method == http.MethodGet:
-		p.handleListProjects(w, r)
+		p.handleListProjects(w, r, userID)
 		return
 	case match(path, "/api/v1/projects") && r.Method == http.MethodPost:
 		p.handleCreateProject(w, r, userID)
@@ -120,6 +117,12 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 			return
 		case rest == "/members" && r.Method == http.MethodGet:
 			p.handleGetMembers(w, r, id)
+			return
+		case rest == "/columns" && r.Method == http.MethodGet:
+			p.handleGetColumns(w, r, id)
+			return
+		case rest == "/columns" && r.Method == http.MethodPost:
+			p.handleCreateColumn(w, r, id)
 			return
 		}
 
@@ -154,6 +157,18 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 		}
 	}
 
+	// /api/v1/columns/{id}
+	if rest, colID, ok := extractID(path, "/api/v1/columns/"); ok && rest == "" {
+		if r.Method == http.MethodPut {
+			p.handleUpdateColumn(w, r, colID)
+			return
+		}
+		if r.Method == http.MethodDelete {
+			p.handleDeleteColumn(w, r, colID)
+			return
+		}
+	}
+
 	// /api/v1/users
 	if path == "/api/v1/users" && r.Method == http.MethodGet {
 		p.handleGetUsers(w, r)
@@ -167,8 +182,8 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 // Project handlers
 // ========================================================================
 
-func (p *Plugin) handleListProjects(w http.ResponseWriter, r *http.Request) {
-	projects, err := p.store.ListProjects()
+func (p *Plugin) handleListProjects(w http.ResponseWriter, r *http.Request, userID string) {
+	projects, err := p.store.ListProjects(userID)
 	if err != nil {
 		p.API.LogError("Failed to list projects", "error", err.Error())
 		writeError(w, http.StatusInternalServerError, "failed to list projects")
@@ -186,17 +201,24 @@ func (p *Plugin) handleCreateProject(w http.ResponseWriter, r *http.Request, use
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	
+	user, err := p.API.GetUser(userID)
+	if err != nil || !strings.Contains(user.Roles, "system_admin") {
+		writeError(w, http.StatusForbidden, "only system admins can create projects")
+		return
+	}
 	if strings.TrimSpace(body.Name) == "" {
 		writeError(w, http.StatusBadRequest, "project name is required")
 		return
 	}
 
-	proj, err := p.store.CreateProject(strings.TrimSpace(body.Name), body.Description, userID)
-	if err != nil {
-		p.API.LogError("Failed to create project", "error", err.Error())
+	proj, createErr := p.store.CreateProject(strings.TrimSpace(body.Name), body.Description, userID)
+	if createErr != nil {
+		p.API.LogError("Failed to create project", "error", createErr.Error())
 		writeError(w, http.StatusInternalServerError, "failed to create project")
 		return
 	}
+	p.broadcastProjectUpdate(proj.ID)
 	writeJSON(w, http.StatusCreated, proj)
 }
 
@@ -232,7 +254,7 @@ func (p *Plugin) handleGetProject(w http.ResponseWriter, r *http.Request, id str
 		user, appErr := p.API.GetUser(m.UserID)
 		if appErr == nil && user != nil {
 			m.Username = user.Username
-			m.DisplayName = user.GetDisplayName(model.ShowNicknameFullName)
+			m.DisplayName = user.GetDisplayName(model.ShowFullName)
 		}
 	}
 
@@ -259,6 +281,7 @@ func (p *Plugin) handleDeleteProject(w http.ResponseWriter, r *http.Request, id 
 		writeError(w, http.StatusInternalServerError, "failed to delete project")
 		return
 	}
+	p.broadcastProjectUpdate(id)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
@@ -278,7 +301,7 @@ func (p *Plugin) handleGetMembers(w http.ResponseWriter, r *http.Request, projec
 		user, appErr := p.API.GetUser(m.UserID)
 		if appErr == nil && user != nil {
 			m.Username = user.Username
-			m.DisplayName = user.GetDisplayName(model.ShowNicknameFullName)
+			m.DisplayName = user.GetDisplayName(model.ShowFullName)
 		}
 	}
 
@@ -303,6 +326,7 @@ func (p *Plugin) handleAddMembers(w http.ResponseWriter, r *http.Request, projec
 		writeError(w, http.StatusInternalServerError, "failed to add members")
 		return
 	}
+	p.broadcastProjectUpdate(projectID)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "added"})
 }
 
@@ -316,6 +340,7 @@ func (p *Plugin) handleRemoveMember(w http.ResponseWriter, r *http.Request, proj
 		writeError(w, http.StatusInternalServerError, "failed to remove member")
 		return
 	}
+	p.broadcastProjectUpdate(projectID)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "removed"})
 }
 
@@ -346,6 +371,7 @@ func (p *Plugin) handleCreateTask(w http.ResponseWriter, r *http.Request, projec
 		DueTime     string `json:"due_time"`
 		Priority    string `json:"priority"`
 		AssigneeID  string `json:"assignee_id"`
+		Status      string `json:"status"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -362,12 +388,12 @@ func (p *Plugin) handleCreateTask(w http.ResponseWriter, r *http.Request, projec
 		priority = "medium"
 	}
 
-	// Determine initial status based on assignee.
-	status := "backlog"
-	assigneeID := body.AssigneeID
-	if assigneeID != "" {
-		status = "todo"
+	// Determine initial status
+	status := body.Status
+	if status == "" {
+		status = projectID + "-backlog"
 	}
+	assigneeID := body.AssigneeID
 
 	task, err := p.store.CreateTask(
 		projectID,
@@ -384,7 +410,7 @@ func (p *Plugin) handleCreateTask(w http.ResponseWriter, r *http.Request, projec
 		writeError(w, http.StatusInternalServerError, "failed to create task")
 		return
 	}
-
+	p.broadcastProjectUpdate(projectID)
 	writeJSON(w, http.StatusCreated, task.ToJSON())
 }
 
@@ -437,10 +463,14 @@ func (p *Plugin) handleUpdateTask(w http.ResponseWriter, r *http.Request, taskID
 		writeError(w, http.StatusInternalServerError, "failed to update task")
 		return
 	}
+	if pid, err := p.store.GetTaskProjectID(taskID); err == nil {
+		p.broadcastProjectUpdate(pid)
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
 
 func (p *Plugin) handleDeleteTask(w http.ResponseWriter, r *http.Request, taskID string) {
+	pid, _ := p.store.GetTaskProjectID(taskID)
 	if err := p.store.DeleteTask(taskID); err != nil {
 		if err == sql.ErrNoRows {
 			writeError(w, http.StatusNotFound, "task not found")
@@ -449,6 +479,9 @@ func (p *Plugin) handleDeleteTask(w http.ResponseWriter, r *http.Request, taskID
 		p.API.LogError("Failed to delete task", "error", err.Error())
 		writeError(w, http.StatusInternalServerError, "failed to delete task")
 		return
+	}
+	if pid != "" {
+		p.broadcastProjectUpdate(pid)
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
@@ -493,7 +526,7 @@ func (p *Plugin) handleGetUsers(w http.ResponseWriter, r *http.Request) {
 		result[i] = userView{
 			ID:          u.Id,
 			Username:    u.Username,
-			DisplayName: u.GetDisplayName(model.ShowNicknameFullName),
+			DisplayName: u.GetDisplayName(model.ShowFullName),
 			Email:       u.Email,
 		}
 	}
@@ -508,8 +541,91 @@ func (p *Plugin) handleGetUsers(w http.ResponseWriter, r *http.Request) {
 func writeJSON(w http.ResponseWriter, code int, data interface{}) {
 	w.WriteHeader(code)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		io.WriteString(w, `{"error":"failed to encode response"}`)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
+}
+
+// ---------- Me Handler ----------
+
+func (p *Plugin) handleGetMe(w http.ResponseWriter, r *http.Request, userID string) {
+	user, err := p.API.GetUser(userID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get user")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"id":       userID,
+		"is_admin": strings.Contains(user.Roles, "system_admin"),
+	})
+}
+
+// ---------- Column Handlers ----------
+
+func (p *Plugin) handleGetColumns(w http.ResponseWriter, r *http.Request, projectID string) {
+	columns, err := p.store.GetProjectColumns(projectID)
+	if err != nil {
+		p.API.LogError("Failed to get columns", "error", err.Error())
+		writeError(w, http.StatusInternalServerError, "failed to get columns")
+		return
+	}
+	writeJSON(w, http.StatusOK, columns)
+}
+
+func (p *Plugin) handleCreateColumn(w http.ResponseWriter, r *http.Request, projectID string) {
+	var col store.Column
+	if err := json.NewDecoder(r.Body).Decode(&col); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	col.ProjectID = projectID
+	if strings.TrimSpace(col.Title) == "" {
+		writeError(w, http.StatusBadRequest, "column title is required")
+		return
+	}
+
+	if err := p.store.CreateColumn(&col); err != nil {
+		p.API.LogError("Failed to create column", "error", err.Error())
+		writeError(w, http.StatusInternalServerError, "failed to create column")
+		return
+	}
+	p.broadcastProjectUpdate(projectID)
+	writeJSON(w, http.StatusCreated, col)
+}
+
+func (p *Plugin) handleUpdateColumn(w http.ResponseWriter, r *http.Request, colID string) {
+	var req struct {
+		Title     string `json:"title"`
+		Color     string `json:"color"`
+		SortOrder *int   `json:"sort_order"`
+		ProjectID string `json:"project_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := p.store.UpdateColumn(colID, req.Title, req.Color, req.SortOrder); err != nil {
+		p.API.LogError("Failed to update column", "error", err.Error())
+		writeError(w, http.StatusInternalServerError, "failed to update column")
+		return
+	}
+	if req.ProjectID != "" {
+		p.broadcastProjectUpdate(req.ProjectID)
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+func (p *Plugin) handleDeleteColumn(w http.ResponseWriter, r *http.Request, colID string) {
+	// We need to know projectID to broadcast, maybe query first?
+	// For simplicity, frontend can just refresh after delete. But let's broadcast if possible.
+	// We didn't pass projectID in URL, so we can't broadcast easily unless we query it.
+	if err := p.store.DeleteColumn(colID); err != nil {
+		p.API.LogError("Failed to delete column", "error", err.Error())
+		writeError(w, http.StatusInternalServerError, "failed to delete column")
+		return
+	}
+	// We'll let the frontend refetch
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
 // writeError writes a JSON error payload.
@@ -534,4 +650,12 @@ func extractID(path, prefix string) (rest string, id string, ok bool) {
 		return remaining[idx:], remaining[:idx], true
 	}
 	return "", remaining, true
+}
+
+func (p *Plugin) broadcastProjectUpdate(projectID string) {
+	p.API.PublishWebSocketEvent(
+		"project_updated",
+		map[string]interface{}{"project_id": projectID},
+		&model.WebsocketBroadcast{},
+	)
 }

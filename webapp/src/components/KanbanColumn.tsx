@@ -1,8 +1,9 @@
 import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus } from 'lucide-react';
+import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { api } from '../api/client';
 import type { Task, ProjectMember } from '../types';
 import { TaskCard } from './TaskCard';
 
@@ -21,7 +22,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
     tasks,
     isDragOver,
 }) => {
-    const { projectMembers, setShowAddTaskDialog } = useStore();
+    const { setEditColumn, setDeleteColumnInfo, setShowAddTaskDialog, projectMembers, setAlertMessage } = useStore();
 
     const { setNodeRef, isOver } = useDroppable({
         id,
@@ -36,17 +37,41 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
         setShowAddTaskDialog(true, id);
     };
 
+    const handleEditColumn = () => {
+        setEditColumn({ id, title, color } as any);
+    };
+
+    const handleDeleteColumn = () => {
+        if (tasks.length > 0) {
+            setAlertMessage('لا يمكن حذف عمود يحتوي على مهام. يرجى نقل المهام أولاً.');
+            return;
+        }
+        setDeleteColumnInfo({ id, title, color } as any);
+    };
+
     const showDragHighlight = isDragOver || isOver;
+
+    const isDefaultColumn = ['-backlog', '-todo', '-in_progress', '-completed'].some(suffix => id.endsWith(suffix));
 
     return (
         <div className={`kanban-column ${showDragHighlight ? 'kanban-column--drag-over' : ''}`}>
             <div className="kanban-column__color-bar" style={{ background: color }} />
 
-            <div className="kanban-column__header">
+            <div className="kanban-column__header" style={{ position: 'relative' }}>
                 <div className="kanban-column__title-group">
                     <span className="kanban-column__title">{title}</span>
                     <span className="kanban-column__count">{tasks.length}</span>
                 </div>
+                {!isDefaultColumn && (
+                    <div className="kanban-column__actions" style={{ display: 'flex', gap: '4px' }}>
+                        <button onClick={handleEditColumn} title="تعديل العمود" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-text-muted)' }}>
+                            <Edit2 size={14} />
+                        </button>
+                        <button onClick={handleDeleteColumn} title="حذف العمود" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-error-text)' }}>
+                            <Trash2 size={14} />
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div ref={setNodeRef} className="kanban-column__tasks">
@@ -61,6 +86,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
                                 key={task.id}
                                 task={task}
                                 projectMembers={projectMembers}
+                                columnColor={color}
                             />
                         ))
                     )}

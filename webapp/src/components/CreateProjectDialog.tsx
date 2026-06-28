@@ -37,16 +37,16 @@ export const CreateProjectDialog: React.FC = () => {
 
     return (
         <div className="modal-overlay" onClick={handleClose}>
-            <div className="modal-dialog" onClick={e => e.stopPropagation()}>
-                <div className="modal-dialog__header">
-                    <h2 className="modal-dialog__title">إنشاء مشروع جديد</h2>
-                    <button className="modal-dialog__close" onClick={handleClose}>
+            <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
+                <div className="modal-dialog1__header">
+                    <h2 className="modal-dialog1__title">إنشاء مشروع جديد</h2>
+                    <button className="modal-dialog1__close" onClick={handleClose}>
                         <X size={18} />
                     </button>
                 </div>
 
                 <form onSubmit={handleSubmit}>
-                    <div className="modal-dialog__body">
+                    <div className="modal-dialog1__body">
                         <div className="form-group">
                             <label className="form-label">اسم المشروع *</label>
                             <input
@@ -71,7 +71,7 @@ export const CreateProjectDialog: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="modal-dialog__footer">
+                    <div className="modal-dialog1__footer">
                         <button
                             type="button"
                             className="btn btn-ghost"

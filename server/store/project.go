@@ -47,13 +47,51 @@ func (s *Store) CreateProject(name, description, creatorID string) (*Project, er
         id := newID()
         now := time.Now().UTC()
 
-        _, err := s.db.Exec(
+        tx, err := s.db.Begin()
+        if err != nil {
+                return nil, fmt.Errorf("begin tx: %w", err)
+        }
+        defer tx.Rollback()
+
+        _, err = tx.Exec(
                 `INSERT INTO projects (id, name, description, creator_id, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?)`,
                 id, name, description, creatorID, now.Format(time.RFC3339), now.Format(time.RFC3339),
         )
         if err != nil {
                 return nil, fmt.Errorf("insert project: %w", err)
+        }
+
+        // Add creator as the first member (admin/owner)
+        memberID := newID()
+        _, err = tx.Exec(
+                `INSERT INTO project_members (id, project_id, user_id, role, joined_at)
+                 VALUES (?, ?, ?, 'admin', ?)`,
+                memberID, id, creatorID, now.Format(time.RFC3339),
+        )
+        if err != nil {
+                return nil, fmt.Errorf("insert project member: %w", err)
+        }
+
+        // Add default columns
+        columns := []struct{ id, title, color string }{
+                {id + "-backlog", "الخلفية", "#64748b"},
+                {id + "-todo", "قيد التنفيذ", "#3b82f6"},
+                {id + "-in_progress", "جاري العمل", "#f59e0b"},
+                {id + "-completed", "مكتمل", "#10b981"},
+        }
+        for i, c := range columns {
+                _, err = tx.Exec(`
+                        INSERT INTO project_columns (id, project_id, title, color, sort_order)
+                        VALUES (?, ?, ?, ?, ?)
+                `, c.id, id, c.title, c.color, i)
+                if err != nil {
+                        return nil, fmt.Errorf("insert default column: %w", err)
+                }
+        }
+
+        if err := tx.Commit(); err != nil {
+                return nil, fmt.Errorf("commit tx: %w", err)
         }
 
         return &Project{
@@ -88,15 +126,16 @@ func (s *Store) GetProject(id string) (*Project, error) {
 }
 
 // ListProjects returns all projects with task_count and member_count.
-func (s *Store) ListProjects() ([]*ProjectWithCounts, error) {
+func (s *Store) ListProjects(userID string) ([]*ProjectWithCounts, error) {
         rows, err := s.db.Query(`
                 SELECT p.id, p.name, p.description, p.creator_id, p.created_at, p.updated_at,
                        COALESCE(t.cnt, 0) AS task_count,
                        COALESCE(m.cnt, 0) AS member_count
                 FROM projects p
+                INNER JOIN project_members my_mem ON my_mem.project_id = p.id AND my_mem.user_id = ?
                 LEFT JOIN (SELECT project_id, COUNT(*) AS cnt FROM tasks GROUP BY project_id) t ON t.project_id = p.id
                 LEFT JOIN (SELECT project_id, COUNT(*) AS cnt FROM project_members GROUP BY project_id) m ON m.project_id = p.id
-                ORDER BY p.updated_at DESC`)
+                ORDER BY p.updated_at DESC`, userID)
         if err != nil {
                 return nil, fmt.Errorf("list projects: %w", err)
         }
