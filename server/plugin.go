@@ -254,7 +254,7 @@ func (p *Plugin) handleGetProject(w http.ResponseWriter, r *http.Request, id str
 		user, appErr := p.API.GetUser(m.UserID)
 		if appErr == nil && user != nil {
 			m.Username = user.Username
-			m.DisplayName = user.GetDisplayName(model.ShowNicknameFullName)
+			m.DisplayName = user.GetDisplayName(model.ShowFullName)
 		}
 	}
 
@@ -301,7 +301,7 @@ func (p *Plugin) handleGetMembers(w http.ResponseWriter, r *http.Request, projec
 		user, appErr := p.API.GetUser(m.UserID)
 		if appErr == nil && user != nil {
 			m.Username = user.Username
-			m.DisplayName = user.GetDisplayName(model.ShowNicknameFullName)
+			m.DisplayName = user.GetDisplayName(model.ShowFullName)
 		}
 	}
 
@@ -526,7 +526,7 @@ func (p *Plugin) handleGetUsers(w http.ResponseWriter, r *http.Request) {
 		result[i] = userView{
 			ID:          u.Id,
 			Username:    u.Username,
-			DisplayName: u.GetDisplayName(model.ShowNicknameFullName),
+			DisplayName: u.GetDisplayName(model.ShowFullName),
 			Email:       u.Email,
 		}
 	}

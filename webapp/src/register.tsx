@@ -77,5 +77,7 @@ export const registerPlugin = (registry: any) => {
         </svg>,
         // Action: toggle the plugin panel
         () => togglePlugin(),
+        "مشاريع جيرا",
+        "فتح إدارة المشاريع (جيرا)"
     );
 };

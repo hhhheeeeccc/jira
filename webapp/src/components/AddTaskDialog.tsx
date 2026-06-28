@@ -18,6 +18,7 @@ export const AddTaskDialog: React.FC = () => {
     const [dueTime, setDueTime] = useState('');
     const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
     const [assigneeId, setAssigneeId] = useState<string>('');
+    const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     
     const dateInputRef = React.useRef<HTMLInputElement>(null);
@@ -155,19 +156,57 @@ export const AddTaskDialog: React.FC = () => {
                                     <User size={13} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 4 }} />
                                     المسؤول
                                 </label>
-                                <select
-                                    className="form-select"
-                                    value={assigneeId}
-                                    onChange={e => setAssigneeId(e.target.value)}
-                                    required
-                                >
-                                    <option value="" disabled>اختر المسؤول...</option>
-                                    {projectMembers.map(member => (
-                                        <option key={member.user_id} value={member.user_id}>
-                                            {member.display_name || member.username}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="custom-select-container">
+                                    <div 
+                                        className="custom-select" 
+                                        onClick={() => setIsAssigneeDropdownOpen(!isAssigneeDropdownOpen)}
+                                    >
+                                        {assigneeId && projectMembers.find(m => m.user_id === assigneeId) ? (
+                                            <div className="custom-select-user">
+                                                <img 
+                                                    src={`/api/v4/users/${assigneeId}/image`} 
+                                                    className="custom-select-avatar" 
+                                                    alt="avatar"
+                                                />
+                                                <span className="custom-select-name" style={{ marginRight: '8px' }}>
+                                                    {projectMembers.find(m => m.user_id === assigneeId)?.display_name || projectMembers.find(m => m.user_id === assigneeId)?.username}
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <span className="custom-select-placeholder">اختر المسؤول...</span>
+                                        )}
+                                    </div>
+                                    
+                                    {isAssigneeDropdownOpen && (
+                                        <>
+                                            <div 
+                                                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} 
+                                                onClick={(e) => { e.stopPropagation(); setIsAssigneeDropdownOpen(false); }} 
+                                            />
+                                            <div className="custom-select-menu">
+                                                {projectMembers.map(member => (
+                                                    <div 
+                                                        key={member.user_id} 
+                                                        className="custom-select-option"
+                                                        onClick={() => {
+                                                            setAssigneeId(member.user_id);
+                                                            setIsAssigneeDropdownOpen(false);
+                                                        }}
+                                                    >
+                                                        <img 
+                                                            src={`/api/v4/users/${member.user_id}/image`} 
+                                                            className="custom-select-avatar" 
+                                                            alt={member.username}
+                                                        />
+                                                        <div className="custom-select-info" style={{ marginRight: '12px' }}>
+                                                            <div className="custom-select-name">{member.display_name || member.username}</div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

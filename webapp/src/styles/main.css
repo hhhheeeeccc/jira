@@ -108,7 +108,7 @@
 .plugin-root {
     direction: rtl;
     text-align: start;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Effra_Trial_Rg', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-size: 14px;
     color: var(--mm-text);
     display: flex;
@@ -150,7 +150,6 @@
 .plugin-sidebar__title {
     color: var(--mm-sidebar-text-active);
     font-size: 16px;
-    font-weight: 700;
     margin-bottom: 16px;
     display: flex;
     align-items: center;
@@ -171,7 +170,6 @@
     border: none;
     border-radius: var(--mm-radius-sm);
     font-size: 13px;
-    font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -218,7 +216,6 @@
 .plugin-sidebar__project-name {
     color: var(--mm-sidebar-text);
     font-size: 14px;
-    font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -227,14 +224,12 @@
 
 .plugin-sidebar__project-item--active .plugin-sidebar__project-name {
     color: var(--mm-sidebar-text-active);
-    font-weight: 600;
 }
 
 .plugin-sidebar__project-badge {
     background: rgba(255, 255, 255, 0.15);
     color: var(--mm-sidebar-text);
     font-size: 11px;
-    font-weight: 600;
     padding: 2px 8px;
     border-radius: 10px;
     min-width: 24px;
@@ -283,7 +278,6 @@
 
 .plugin-main__welcome-title {
     font-size: 20px;
-    font-weight: 600;
     color: var(--mm-text);
     margin-bottom: 8px;
 }
@@ -317,7 +311,6 @@
 
 .plugin-project-header__name {
     font-size: 20px;
-    font-weight: 700;
     color: var(--mm-text);
     margin-bottom: 4px;
 }
@@ -342,7 +335,6 @@
     border: 1px solid var(--mm-border);
     border-radius: var(--mm-radius-sm);
     font-size: 13px;
-    font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -369,7 +361,6 @@
     border: 1px solid var(--mm-danger);
     border-radius: var(--mm-radius-sm);
     font-size: 13px;
-    font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -409,7 +400,6 @@
 }
 
 .plugin-project-header__stat-value {
-    font-weight: 600;
     color: var(--mm-text);
 }
 
@@ -426,7 +416,6 @@
     background: var(--mm-primary);
     color: #ffffff;
     font-size: 11px;
-    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -500,7 +489,6 @@
 
 .kanban-column__title {
     font-size: 13px;
-    font-weight: 700;
     color: var(--mm-text);
 }
 
@@ -508,7 +496,6 @@
     background: rgba(0, 0, 0, 0.08);
     color: var(--mm-text-secondary);
     font-size: 11px;
-    font-weight: 700;
     padding: 1px 8px;
     border-radius: 10px;
     min-width: 22px;
@@ -551,7 +538,6 @@
     border: none;
     border-radius: var(--mm-radius-sm);
     font-size: 13px;
-    font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -600,7 +586,6 @@
 
 .task-card__title {
     font-size: 14px;
-    font-weight: 600;
     color: var(--mm-text);
     margin-bottom: 8px;
     line-height: 1.4;
@@ -616,7 +601,6 @@
 
 .task-card__priority {
     font-size: 11px;
-    font-weight: 700;
     padding: 2px 8px;
     border-radius: 10px;
     display: inline-flex;
@@ -658,7 +642,6 @@
     background: var(--mm-primary);
     color: #ffffff;
     font-size: 9px;
-    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -784,7 +767,6 @@
 
 .modal-dialog1__title {
     font-size: 18px;
-    font-weight: 700;
     color: var(--mm-text);
 }
 
@@ -833,7 +815,6 @@
 .form-label {
     display: block;
     font-size: 13px;
-    font-weight: 600;
     color: var(--mm-text);
     margin-bottom: 6px;
 }
@@ -881,6 +862,79 @@
     padding-left: 32px;
 }
 
+/* Custom Dropdown for User Selection */
+.custom-select-container {
+    position: relative;
+    width: 100%;
+}
+.custom-select {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--mm-border);
+    border-radius: var(--mm-radius-sm);
+    background: var(--mm-surface);
+    cursor: pointer;
+    min-height: 38px;
+    color: var(--mm-text);
+    font-size: 14px;
+    transition: border-color var(--mm-transition);
+}
+.custom-select:hover {
+    border-color: var(--mm-primary);
+}
+.custom-select-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.custom-select-placeholder {
+    color: var(--mm-text-muted);
+}
+.custom-select-user {
+    display: flex;
+    align-items: center;
+}
+.custom-select-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: var(--mm-surface);
+    border: 1px solid var(--mm-border);
+    border-radius: var(--mm-radius-sm);
+    box-shadow: var(--mm-shadow-lg);
+    z-index: 100;
+    max-height: 200px;
+    overflow-y: auto;
+    direction: rtl;
+}
+.custom-select-option {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background var(--mm-transition);
+}
+.custom-select-option:hover {
+    background: var(--mm-sidebar-hover);
+    color: var(--mm-sidebar-text-active);
+}
+.custom-select-info {
+    display: flex;
+    flex-direction: column;
+}
+.custom-select-name {
+    font-size: 14px;
+}
+.custom-select-username {
+    font-size: 12px;
+    color: var(--mm-text-muted);
+}
+
 .form-row {
     display: flex;
     gap: 12px;
@@ -906,7 +960,6 @@
     border: none;
     border-radius: var(--mm-radius-sm);
     font-size: 14px;
-    font-weight: 600;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -969,7 +1022,6 @@
 
 .members-section__title {
     font-size: 14px;
-    font-weight: 700;
     color: var(--mm-text);
     margin-bottom: 12px;
     padding-bottom: 8px;
@@ -1006,7 +1058,6 @@
     background: var(--mm-primary);
     color: #ffffff;
     font-size: 12px;
-    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1016,7 +1067,6 @@
 .member-item__name {
     font-size: 14px;
     color: var(--mm-text);
-    font-weight: 500;
 }
 
 .member-item__username {
@@ -1243,7 +1293,6 @@
     }
 
     .mobile-top-bar__title {
-        font-weight: 600;
         font-size: 16px;
     }
 
@@ -1422,7 +1471,6 @@
     padding: 2px 6px;
     border-radius: 12px;
     margin-right: 8px;
-    font-weight: 600;
 }
 
 .member-checkbox.hidden {

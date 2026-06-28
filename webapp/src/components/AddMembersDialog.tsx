@@ -126,7 +126,6 @@ export const AddMembersDialog: React.FC = () => {
                                                     {getDisplayName(member)}
                                                     {member.role === 'admin' && <span className="role-badge">مشرف</span>}
                                                 </div>
-                                                <div className="member-item__username">@{member.username}</div>
                                             </div>
                                         </div>
                                         {member.role !== 'admin' && (
@@ -185,7 +184,6 @@ export const AddMembersDialog: React.FC = () => {
                                                 />
                                                 <div className="member-checkbox-item__info">
                                                     <div className="member-item__name">{displayName}</div>
-                                                    <div className="member-item__username">@{user.username}</div>
                                                 </div>
                                                 {isChecked && <UserPlus className="member-item__selected-icon" size={16} />}
                                             </label>
