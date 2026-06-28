@@ -1,0 +1,9 @@
+skills/
+tool-results/
+webapp/node_modules/
+server/dist/
+webapp/dist/
+dist/
+*.db
+*.exe
+.DS_Store
