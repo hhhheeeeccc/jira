@@ -440,13 +440,13 @@
    ============================================ */
 .kanban-board {
     flex: 1;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
     gap: 16px;
     padding: 16px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    align-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    align-items: flex-start;
 }
 
 /* ============================================
@@ -457,6 +457,9 @@
     border-radius: var(--mm-radius-lg);
     display: flex;
     flex-direction: column;
+    min-width: 280px;
+    width: 280px;
+    flex-shrink: 0;
     height: calc(100vh - 240px);
     transition: box-shadow 200ms ease;
     border: 1px solid rgba(0, 0, 0, 0.05);
@@ -1353,7 +1356,6 @@
     .kanban-board {
         padding: 12px;
         gap: 12px;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     }
 
     .kanban-column {
@@ -1560,4 +1562,161 @@
     font-size: 14px;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* ============================================
+   Task Details Dialog
+   ============================================ */
+.task-details-modal {
+    max-width: 700px !important;
+    width: 90% !important;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.task-details-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px;
+    overflow-y: auto;
+    max-height: calc(85vh - 70px);
+}
+
+.task-details-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    background: var(--mm-center-channel-bg, #fff);
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.task-details-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 220px;
+}
+
+.task-details-section .section-title,
+.task-details-description-block .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--mm-text-color-light);
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.details-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed rgba(0,0,0,0.05);
+}
+.details-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.details-label {
+    font-size: 13px;
+    color: var(--mm-text-color-light);
+}
+
+.details-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--mm-text-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.task-details-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.task-details-avatar-placeholder {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--mm-text-color-light);
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    display: inline-block;
+    width: fit-content;
+}
+
+.priority-badge, .assignee-info, .due-date-value {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.task-details-description-block {
+    margin-top: 8px;
+}
+
+.task-details-description-content {
+    background: var(--mm-center-channel-bg, #fff);
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: var(--mm-radius);
+    padding: 16px;
+    min-height: 100px;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.empty-description {
+    color: var(--mm-text-color-light);
+    font-style: italic;
+}
+
+/* Markdown specific styles */
+.markdown-body table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 16px;
+}
+.markdown-body th, .markdown-body td {
+    border: 1px solid rgba(0,0,0,0.1);
+    padding: 8px 12px;
+}
+.markdown-body th {
+    background: rgba(0,0,0,0.03);
+    font-weight: 600;
+}
+.markdown-body ul, .markdown-body ol {
+    padding-inline-start: 24px;
+    margin-bottom: 16px;
+}
+.markdown-body p {
+    margin-bottom: 16px;
+}
+.markdown-body p:last-child {
+    margin-bottom: 0;
 }

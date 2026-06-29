@@ -13,6 +13,7 @@ export const AddMembersDialog: React.FC = () => {
         setMattermostUsers,
         setError,
         setDeleteMemberInfo,
+        currentUser,
     } = useStore();
 
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -40,6 +41,12 @@ export const AddMembersDialog: React.FC = () => {
     }, [setMattermostUsers]);
 
     if (!selectedProject) return null;
+
+    const isProjectAdmin = React.useMemo(() => {
+        if (!currentUser || !selectedProject) return false;
+        const member = projectMembers.find(m => m.user_id === currentUser.id);
+        return member?.role === 'admin';
+    }, [currentUser, selectedProject, projectMembers]);
 
     const currentMemberUserIds = new Set(projectMembers.map(m => m.user_id));
     const availableUsers = mattermostUsers.filter(u => !currentMemberUserIds.has(u.id));
@@ -128,7 +135,7 @@ export const AddMembersDialog: React.FC = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        {member.role !== 'admin' && (
+                                        {isProjectAdmin && member.role !== 'admin' && (
                                             <button
                                                 className="member-item__remove"
                                                 onClick={() => handleRemoveMember(member.user_id)}
@@ -145,7 +152,7 @@ export const AddMembersDialog: React.FC = () => {
                     </div>
 
                     {/* Add New Members */}
-                    {availableUsers.length > 0 && (
+                    {isProjectAdmin && availableUsers.length > 0 && (
                         <div className="members-section">
                             <div className="members-section__title">إضافة أعضاء جدد</div>
                             

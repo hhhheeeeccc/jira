@@ -21,7 +21,7 @@ interface TaskCardProps {
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOverlay = false, columnColor }) => {
-    const { selectedProject, setProjectTasks, setError, setDeleteTaskInfo } = useStore();
+    const { selectedProject, setProjectTasks, setError, setDeleteTaskInfo, currentUser, setSelectedTaskDetails } = useStore();
     const [deleting, setDeleting] = React.useState(false);
 
     const {
@@ -59,6 +59,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
 
     const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
 
+    const canDelete = React.useMemo(() => {
+        if (!currentUser) return false;
+        if (task.assignee_id === currentUser.id) return true;
+        
+        const member = projectMembers.find(m => m.user_id === currentUser.id);
+        return member?.role === 'admin';
+    }, [currentUser, task.assignee_id, projectMembers]);
+
     const formatDueDate = (dateStr: string) => {
         const date = new Date(dateStr);
         return date.toLocaleDateString('ar-SA', {
@@ -92,15 +100,18 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
             className={`task-card ${isDragging ? 'task-card--dragging' : ''}`}
             {...attributes}
             {...listeners}
+            onClick={() => setSelectedTaskDetails(task)}
         >
-            <button
-                className="task-card__delete"
-                onClick={handleDelete}
-                disabled={deleting}
-                title="حذف المهمة"
-            >
-                <Trash2 size={14} />
-            </button>
+            {canDelete && (
+                <button
+                    className="task-card__delete"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    title="حذف المهمة"
+                >
+                    <Trash2 size={14} />
+                </button>
+            )}
 
             <div className="task-card__title">{task.title}</div>
 

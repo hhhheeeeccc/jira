@@ -10,6 +10,7 @@ export const DeleteColumnDialog: React.FC = () => {
         projectColumns,
         setProjectColumns,
         setError,
+        selectedProject,
     } = useStore();
 
     const [submitting, setSubmitting] = useState(false);
@@ -24,7 +25,7 @@ export const DeleteColumnDialog: React.FC = () => {
         setSubmitting(true);
         setError(null);
         try {
-            await api.deleteColumn(deleteColumnInfo.id);
+            await api.deleteColumn(deleteColumnInfo.id, selectedProject?.id);
             setProjectColumns(projectColumns.filter(c => c.id !== deleteColumnInfo.id));
             handleClose();
         } catch (err: any) {

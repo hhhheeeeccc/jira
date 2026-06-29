@@ -98,8 +98,8 @@ export const api = {
             body: JSON.stringify(data),
         })).then(r => handleResponse(r)),
 
-    deleteColumn: (columnId: string): Promise<any> =>
-        fetch(`${BASE_URL}/columns/${columnId}`, getOptions({ method: 'DELETE' })).then(r => handleResponse(r)),
+    deleteColumn: (columnId: string, projectId?: string): Promise<any> =>
+        fetch(`${BASE_URL}/columns/${columnId}${projectId ? `?project_id=${projectId}` : ''}`, getOptions({ method: 'DELETE' })).then(r => handleResponse(r)),
 
     // User
     getMe: (): Promise<{ id: string; is_admin: boolean }> =>

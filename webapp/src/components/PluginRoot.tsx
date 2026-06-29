@@ -11,6 +11,7 @@ import { EditColumnDialog } from './EditColumnDialog';
 import { DeleteColumnDialog } from './DeleteColumnDialog';
 import { DeleteProjectDialog } from './DeleteProjectDialog';
 import { DeleteTaskDialog } from './DeleteTaskDialog';
+import { TaskDetailsDialog } from './TaskDetailsDialog';
 import { RemoveMemberDialog } from './RemoveMemberDialog';
 import { AlertDialog } from './AlertDialog';
 import { KanbanBoard } from './KanbanBoard';
@@ -42,6 +43,8 @@ export const PluginRoot: React.FC = () => {
         setShowCreateProjectDialog,
         setShowAddMembersDialog,
         setDeleteProjectInfo,
+        selectedTaskDetails,
+        setSelectedTaskDetails,
     } = useStore();
 
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
@@ -124,19 +127,23 @@ export const PluginRoot: React.FC = () => {
 
     const loadProjectData = useCallback(async (project: Project) => {
         setSelectedProject(project);
+        setLoading(true);
         try {
             const [membersData, tasksData, columnsData] = await Promise.all([
                 api.getProjectMembers(project.id),
                 api.getProjectTasks(project.id),
-                api.getProjectColumns(project.id),
+                api.getProjectColumns(project.id)
             ]);
             setProjectMembers(Array.isArray(membersData) ? membersData : []);
             setProjectTasks(Array.isArray(tasksData) ? tasksData : []);
             setProjectColumns(Array.isArray(columnsData) ? columnsData : []);
         } catch (err: any) {
-            setError(err.message || 'Failed to load project data');
+            setError(err.message || 'فشل تحميل بيانات المشروع');
+        } finally {
+            setLoading(false);
         }
-    }, [setSelectedProject, setProjectMembers, setProjectTasks, setProjectColumns, setError]);
+    }, [setSelectedProject, setProjectMembers, setProjectTasks, setProjectColumns, setLoading, setError]);
+
 
     const handleSelectProject = (project: Project) => {
         loadProjectData(project);
@@ -160,6 +167,12 @@ export const PluginRoot: React.FC = () => {
     const doneTasks = projectTasks.filter(t => t.status === 'done').length;
     const inProgressTasks = projectTasks.filter(t => t.status === 'in_progress').length;
     const todoTasks = projectTasks.filter(t => t.status === 'todo').length;
+
+    const isProjectAdmin = React.useMemo(() => {
+        if (!currentUser || !selectedProject) return false;
+        const member = projectMembers.find(m => m.user_id === currentUser.id);
+        return member?.role === 'admin';
+    }, [currentUser, selectedProject, projectMembers]);
 
     if (!visible) return null;
 
@@ -282,13 +295,15 @@ export const PluginRoot: React.FC = () => {
                                                 <Users />
                                                 <span>الأعضاء</span>
                                             </button>
-                                            <button
-                                                className="btn-danger-outline"
-                                                onClick={handleDeleteProject}
-                                            >
-                                                <Trash2 />
-                                                <span>حذف</span>
-                                            </button>
+                                            {isProjectAdmin && (
+                                                <button
+                                                    className="btn-danger-outline"
+                                                    onClick={handleDeleteProject}
+                                                >
+                                                    <Trash2 />
+                                                    <span>حذف</span>
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
 
@@ -344,6 +359,7 @@ export const PluginRoot: React.FC = () => {
                     <DeleteColumnDialog />
                     <DeleteProjectDialog />
                     <DeleteTaskDialog />
+                    <TaskDetailsDialog />
                     <RemoveMemberDialog />
                     <AlertDialog />
                 </div>

@@ -2,10 +2,10 @@ import React from 'react';
 import {PluginRoot} from './components/PluginRoot';
 
 // Global toggle state for plugin visibility
-let pluginVisible = localStorage.getItem('jira_plugin_visible') === 'true' || window.location.hash === '#jira';
+let pluginVisible = localStorage.getItem('jira_plugin_visible') === 'true' || window.location.hash.startsWith('#jira');
 
 // Sync initial hash if localStorage was true but hash wasn't there
-if (pluginVisible && window.location.hash !== '#jira') {
+if (pluginVisible && !window.location.hash.startsWith('#jira')) {
     window.history.replaceState(null, '', window.location.pathname + window.location.search + '#jira');
 }
 
@@ -20,9 +20,9 @@ export function togglePlugin(forceState?: boolean) {
     
     localStorage.setItem('jira_plugin_visible', String(pluginVisible));
     
-    if (pluginVisible && window.location.hash !== '#jira') {
+    if (pluginVisible && !window.location.hash.startsWith('#jira')) {
         window.history.pushState(null, '', window.location.pathname + window.location.search + '#jira');
-    } else if (!pluginVisible && window.location.hash === '#jira') {
+    } else if (!pluginVisible && window.location.hash.startsWith('#jira')) {
         window.history.pushState(null, '', window.location.pathname + window.location.search);
     }
     
@@ -31,7 +31,7 @@ export function togglePlugin(forceState?: boolean) {
 
 // Listen to browser Back/Forward buttons
 window.addEventListener('popstate', () => {
-    const shouldBeVisible = window.location.hash === '#jira';
+    const shouldBeVisible = window.location.hash.startsWith('#jira');
     if (pluginVisible !== shouldBeVisible) {
         togglePlugin(shouldBeVisible);
     }
@@ -59,8 +59,8 @@ export const registerPlugin = (registry: any) => {
     registry.registerChannelHeaderButtonAction(
         // Kanban board icon
         <svg
-            width="20"
-            height="20"
+            width="17"
+            height="17"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

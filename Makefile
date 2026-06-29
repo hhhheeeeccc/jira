@@ -8,6 +8,7 @@ VERSION ?= $(shell grep '"version"' plugin.json | sed -E 's/.*"version": "([^"]+
 
 export GOTOOLCHAIN := local
 export CGO_ENABLED := 1
+export CGO_CFLAGS := -Wno-return-local-addr
 
 GO_BUILD_FLAGS := -ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildDate=$(BUILD_DATE)"
 
