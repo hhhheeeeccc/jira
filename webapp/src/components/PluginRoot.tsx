@@ -1,5 +1,14 @@
 import React, { useEffect, useCallback } from 'react';
-import { LayoutDashboard, Plus, Users, Trash2, AlertCircle, X, Menu } from 'lucide-react';
+import { Plus, Users, Trash2, AlertCircle, X, Menu, ChevronDown, FolderPlus } from 'lucide-react';
+
+const KanbanIcon = ({ className, size = 16 }: { className?: string, size?: number | string }) => (
+    <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+        <path d="M8 7v7"/>
+        <path d="M12 7v4"/>
+        <path d="M16 7v9"/>
+    </svg>
+);
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
 import type { Project } from '../types';
@@ -15,11 +24,9 @@ import { TaskDetailsDialog } from './TaskDetailsDialog';
 import { RemoveMemberDialog } from './RemoveMemberDialog';
 import { AlertDialog } from './AlertDialog';
 import { KanbanBoard } from './KanbanBoard';
-import { usePluginVisible } from '../register';
 import '../styles/main.css';
 
 export const PluginRoot: React.FC = () => {
-    const [visible, toggle] = usePluginVisible();
 
     const {
         projects,
@@ -48,6 +55,38 @@ export const PluginRoot: React.FC = () => {
     } = useStore();
 
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
+    const [isCreateDropdownOpen, setIsCreateDropdownOpen] = React.useState(false);
+    const [dropdownPos, setDropdownPos] = React.useState({ top: 0, left: 0 });
+    const createBtnRef = React.useRef<HTMLButtonElement>(null);
+    const createDropdownRef = React.useRef<HTMLDivElement>(null);
+
+    const openCreateDropdown = () => {
+        if (createBtnRef.current) {
+            const rect = createBtnRef.current.getBoundingClientRect();
+            setDropdownPos({
+                top: rect.bottom + 4,
+                left: rect.left,
+            });
+        }
+        setIsCreateDropdownOpen(v => !v);
+    };
+
+    // Close dropdown on outside click
+    useEffect(() => {
+        if (!isCreateDropdownOpen) return;
+        const handle = (e: MouseEvent) => {
+            const dropEl = createDropdownRef.current;
+            const btnEl = createBtnRef.current;
+            if (
+                dropEl && !dropEl.contains(e.target as Node) &&
+                btnEl && !btnEl.contains(e.target as Node)
+            ) {
+                setIsCreateDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handle);
+        return () => document.removeEventListener('mousedown', handle);
+    }, [isCreateDropdownOpen]);
 
     // Load projects and current user on mount
     const loadProjects = useCallback(async () => {
@@ -67,26 +106,8 @@ export const PluginRoot: React.FC = () => {
     }, [setProjects, setCurrentUser, setLoading, setError]);
 
     useEffect(() => {
-        if (visible) {
-            loadProjects();
-        } else {
-            setSelectedProject(null);
-            setProjectTasks([]);
-            setProjectColumns([]);
-            setProjectMembers([]);
-        }
-    }, [visible]);
-
-    // Close on Escape key
-    useEffect(() => {
-        const handleKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && visible) {
-                toggle();
-            }
-        };
-        window.addEventListener('keydown', handleKey);
-        return () => window.removeEventListener('keydown', handleKey);
-    }, [visible, toggle]);
+        loadProjects();
+    }, [loadProjects]);
 
     // WebSocket sync listener
     useEffect(() => {
@@ -174,19 +195,8 @@ export const PluginRoot: React.FC = () => {
         return member?.role === 'admin';
     }, [currentUser, selectedProject, projectMembers]);
 
-    if (!visible) return null;
-
     return (
-        <div className="plugin-overlay" onClick={(e) => {
-            if (e.target === e.currentTarget) toggle();
-        }}>
-            <div className="plugin-overlay__panel">
-                {/* Close button */}
-                <button className="plugin-overlay__close" onClick={toggle} title="Close">
-                    <X size={20} />
-                </button>
-
-                <div className="plugin-root">
+        <div className="plugin-root">
                     {/* Mobile Sidebar Overlay */}
                     <div 
                         className={`plugin-sidebar-overlay ${isMobileSidebarOpen ? 'open' : ''}`} 
@@ -197,17 +207,39 @@ export const PluginRoot: React.FC = () => {
                     <aside className={`plugin-sidebar ${isMobileSidebarOpen ? 'open' : ''}`}>
                         <div className="plugin-sidebar__header">
                             <div className="plugin-sidebar__title">
-                                <LayoutDashboard />
+                                <KanbanIcon />
                                 <span>مشاريع جيرا</span>
                             </div>
                             {currentUser?.isAdmin && (
-                                <button
-                                    className="btn-create-project"
-                                    onClick={() => setShowCreateProjectDialog(true)}
-                                >
-                                    <Plus />
-                                    <span>مشروع جديد</span>
-                                </button>
+                                <>
+                                    <button
+                                        ref={createBtnRef}
+                                        className="btn-create-icon"
+                                        onClick={openCreateDropdown}
+                                        title="إنشاء مشروع جديد"
+                                        aria-label="قائمة منسدلة لإنشاء مشروع"
+                                    >
+                                        <Plus size={18} />
+                                    </button>
+                                    {isCreateDropdownOpen && (
+                                        <div
+                                            ref={createDropdownRef}
+                                            className="btn-create-dropdown"
+                                            style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
+                                        >
+                                            <button
+                                                className="btn-create-dropdown-item"
+                                                onClick={() => {
+                                                    setIsCreateDropdownOpen(false);
+                                                    setShowCreateProjectDialog(true);
+                                                }}
+                                            >
+                                                <FolderPlus size={15} />
+                                                <span>إنشاء مشروع جديد</span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
 
@@ -266,7 +298,7 @@ export const PluginRoot: React.FC = () => {
                             </div>
                         ) : !selectedProject ? (
                             <div className="plugin-main__welcome">
-                                <LayoutDashboard className="plugin-main__welcome-icon" />
+                                <KanbanIcon className="plugin-main__welcome-icon" size={64} />
                                 <div className="plugin-main__welcome-title">إدارة المشاريع</div>
                                 <div className="plugin-main__welcome-desc">
                                     اختر مشروعاً من القائمة الجانبية أو قم بإنشاء مشروع جديد للبدء في تنظيم مهامك على لوحة كانبان
@@ -316,7 +348,7 @@ export const PluginRoot: React.FC = () => {
                                             <span>عضو</span>
                                         </div>
                                         <div className="plugin-project-header__stat">
-                                            <LayoutDashboard size={15} />
+                                            <KanbanIcon size={15} />
                                             <span className="plugin-project-header__stat-value">{totalTasks}</span>
                                             <span>مهمة</span>
                                         </div>
@@ -363,7 +395,5 @@ export const PluginRoot: React.FC = () => {
                     <RemoveMemberDialog />
                     <AlertDialog />
                 </div>
-            </div>
-        </div>
     );
 };

@@ -1,83 +1,103 @@
 import React from 'react';
 import {PluginRoot} from './components/PluginRoot';
 
-// Global toggle state for plugin visibility
-let pluginVisible = localStorage.getItem('jira_plugin_visible') === 'true' || window.location.hash.startsWith('#jira');
+const KanbanIcon = ({ color, size = 16 }: { color?: string, size?: number | string }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="17" height="17" rx="2" ry="2"/>
+        <path d="M8 7v7"/>
+        <path d="M12 7v4"/>
+        <path d="M16 7v9"/>
+    </svg>
+);
 
-// Sync initial hash if localStorage was true but hash wasn't there
-if (pluginVisible && !window.location.hash.startsWith('#jira')) {
-    window.history.replaceState(null, '', window.location.pathname + window.location.search + '#jira');
-}
+const ProductSwitcherIcon = () => <KanbanIcon color="var(--button-bg)" size={17} />;
 
-const toggleListeners: Array<() => void> = [];
-
-export function togglePlugin(forceState?: boolean) {
-    if (typeof forceState === 'boolean') {
-        pluginVisible = forceState;
-    } else {
-        pluginVisible = !pluginVisible;
-    }
-    
-    localStorage.setItem('jira_plugin_visible', String(pluginVisible));
-    
-    if (pluginVisible && !window.location.hash.startsWith('#jira')) {
-        window.history.pushState(null, '', window.location.pathname + window.location.search + '#jira');
-    } else if (!pluginVisible && window.location.hash.startsWith('#jira')) {
-        window.history.pushState(null, '', window.location.pathname + window.location.search);
-    }
-    
-    toggleListeners.forEach((fn) => fn());
-}
-
-// Listen to browser Back/Forward buttons
-window.addEventListener('popstate', () => {
-    const shouldBeVisible = window.location.hash.startsWith('#jira');
-    if (pluginVisible !== shouldBeVisible) {
-        togglePlugin(shouldBeVisible);
-    }
-});
-
-export function usePluginVisible(): [boolean, () => void] {
-    const [, forceUpdate] = React.useReducer((x: number) => x + 1, 0);
-
+// Inject CSS to set the global header background to sidebar-bg when on /jira route
+const GlobalHeaderCenter = () => {
     React.useEffect(() => {
-        toggleListeners.push(forceUpdate);
+        const styleId = 'jira-plugin-header-style';
+        let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = styleId;
+            document.head.appendChild(styleEl);
+        }
+        styleEl.textContent = `
+            #global-header,
+            .global-header,
+            [class*="GlobalHeaderContainer"],
+            [class*="global-header"] {
+                background: var(--sidebar-header-bg) !important;
+                border-bottom-color: rgba(var(--sidebar-text-rgb, 255,255,255), 0.08) !important;
+            }
+            #team-sidebar,
+            .team-sidebar,
+            [class*="TeamSidebar"],
+            [class*="team-sidebar"] {
+                background: var(--sidebar-header-bg) !important;
+            }
+            
+            /* Fix white borders/gaps around the plugin */
+            #app-content,
+            .app__content,
+            .main-wrapper,
+            .product-wrapper,
+            .a11y__region,
+            .a11y__region > div {
+                background: var(--center-channel-bg) !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                height: 100% !important;
+                display: flex !important;
+                flex: 1 1 auto !important;
+                flex-direction: column !important;
+                border-radius: 0 !important;
+            }
+
+        `;
         return () => {
-            const idx = toggleListeners.indexOf(forceUpdate);
-            if (idx >= 0) toggleListeners.splice(idx, 1);
+            // Remove style when unmounted (leaving /jira)
+            const el = document.getElementById(styleId);
+            if (el) el.remove();
         };
     }, []);
+    return null;
+};
 
-    return [pluginVisible, togglePlugin];
-}
+const navigateToJira = () => {
+    // Use Mattermost's SPA router to avoid full page refresh
+    const browserHistory = (window as any).WebappUtils?.browserHistory;
+    if (browserHistory) {
+        browserHistory.push('/jira');
+    } else {
+        // Fallback
+        const teamName = window.location.pathname.split('/')[1] || '';
+        window.location.href = `/${teamName}/jira`;
+    }
+};
 
 export const registerPlugin = (registry: any) => {
-    // Register the main plugin component (renders in the DOM)
-    registry.registerRootComponent(PluginRoot);
+    // Register as a native Mattermost Product (like Playbooks/Boards)
+    // Parameters: baseURL, productIcon, productName, defaultLandingPage, mainComponent, headerCenterComponent, headerRightComponent, enableTeamSidebar
+    if (registry.registerProduct) {
+        registry.registerProduct(
+            '/jira',
+            ProductSwitcherIcon,
+            'إدارة مشاريع جيرا',
+            '/jira',
+            PluginRoot,
+            GlobalHeaderCenter,
+            null,
+            true
+        );
+    } else {
+        registry.registerCustomRoute('/jira', PluginRoot);
+    }
 
-    // Register a channel header button so users can open the plugin
     registry.registerChannelHeaderButtonAction(
-        // Kanban board icon
-        <svg
-            width="17"
-            height="17"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <rect x="2" y="3" width="6" height="8" rx="1"/>
-            <rect x="9" y="3" width="6" height="5" rx="1"/>
-            <rect x="16" y="3" width="6" height="11" rx="1"/>
-            <rect x="2" y="13" width="6" height="8" rx="1"/>
-            <rect x="9" y="10" width="6" height="11" rx="1"/>
-            <rect x="16" y="16" width="6" height="5" rx="1"/>
-        </svg>,
-        // Action: toggle the plugin panel
-        () => togglePlugin(),
-        "مشاريع جيرا",
-        "فتح إدارة المشاريع (جيرا)"
+        <KanbanIcon />,
+        navigateToJira,
+        "إدارة مشاريع جيرا",
+        "إدارة مشاريع جيرا"
     );
 };

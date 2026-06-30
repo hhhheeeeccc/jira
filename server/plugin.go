@@ -817,3 +817,30 @@ func (p *Plugin) sendTaskNotification(assigneeID, creatorID, projectID, projectN
                 p.API.LogError("Failed to send task notification", "error", appErr.Error())
         }
 }
+
+// MessageWillBePosted intercepts messages before they are posted to block direct messages to the bot.
+func (p *Plugin) MessageWillBePosted(c *plugin.Context, post *model.Post) (*model.Post, string) {
+	// If the bot hasn't been initialized yet, just allow everything
+	if p.botUserID == "" {
+		return post, ""
+	}
+
+	channel, appErr := p.API.GetChannel(post.ChannelId)
+	if appErr != nil {
+		return post, ""
+	}
+
+	// Check if this is a Direct Message channel
+	if channel.Type == model.ChannelTypeDirect {
+		// A DM channel name is made of the two user IDs joined by "__"
+		// If the channel name contains our bot's ID, it means someone is messaging the bot
+		if strings.Contains(channel.Name, p.botUserID) {
+			// If the sender is NOT the bot itself, block the message
+			if post.UserId != p.botUserID {
+				return nil, "عذراً، هذا البوت مخصص للإشعارات التلقائية فقط ولا يمكن مراسلته."
+			}
+		}
+	}
+
+	return post, ""
+}
