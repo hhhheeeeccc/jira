@@ -10,6 +10,9 @@ export const DeleteProjectDialog: React.FC = () => {
         projects,
         setProjects,
         setSelectedProject,
+        setProjectMembers,
+        setProjectTasks,
+        setProjectColumns,
         setError,
     } = useStore();
 
@@ -28,7 +31,27 @@ export const DeleteProjectDialog: React.FC = () => {
             await api.deleteProject(deleteProjectInfo.id);
             const updatedProjects = projects.filter(p => p.id !== deleteProjectInfo.id);
             setProjects(updatedProjects);
-            setSelectedProject(updatedProjects.length > 0 ? updatedProjects[0] : null);
+            if (updatedProjects.length > 0) {
+                setSelectedProject(updatedProjects[0]);
+                // Load data for the auto-selected project
+                try {
+                    const [membersData, tasksData, columnsData] = await Promise.all([
+                        api.getProjectMembers(updatedProjects[0].id),
+                        api.getProjectTasks(updatedProjects[0].id),
+                        api.getProjectColumns(updatedProjects[0].id),
+                    ]);
+                    setProjectMembers(Array.isArray(membersData) ? membersData : []);
+                    setProjectTasks(Array.isArray(tasksData) ? tasksData : []);
+                    setProjectColumns(Array.isArray(columnsData) ? columnsData : []);
+                } catch (loadErr: any) {
+                    // Non-fatal
+                }
+            } else {
+                setSelectedProject(null);
+                setProjectMembers([]);
+                setProjectTasks([]);
+                setProjectColumns([]);
+            }
             handleClose();
         } catch (err: any) {
             setError(err.message || 'فشل حذف المشروع');
@@ -38,7 +61,7 @@ export const DeleteProjectDialog: React.FC = () => {
     };
 
     return (
-        <div className="modal-overlay" onClick={handleClose}>
+        <div className="modal-overlay" onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
             <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--mm-error-text)' }}>

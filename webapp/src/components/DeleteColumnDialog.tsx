@@ -35,7 +35,7 @@ export const DeleteColumnDialog: React.FC = () => {
     };
 
     return (
-        <div className="modal-overlay" onClick={handleClose}>
+        <div className="modal-overlay" onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
             <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--mm-error-text)' }}>

@@ -20,13 +20,16 @@ export const AddMembersDialog: React.FC = () => {
     const [adding, setAdding] = useState(false);
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [usersPage, setUsersPage] = useState(1);
+    const [hasMoreUsers, setHasMoreUsers] = useState(true);
 
     useEffect(() => {
         const loadUsers = async () => {
             setLoadingUsers(true);
             try {
-                const users = await api.getUsers();
+                const users = await api.getUsers(1);
                 setMattermostUsers(Array.isArray(users) ? users : []);
+                setHasMoreUsers(users.length >= 200);
             } catch (err: any) {
                 console.error('Failed to load users:', err);
             } finally {
@@ -49,6 +52,23 @@ export const AddMembersDialog: React.FC = () => {
             (u.display_name && u.display_name.toLowerCase().includes(q))
         );
     }, [availableUsers, searchQuery]);
+
+    const loadMoreUsers = async () => {
+        const nextPage = usersPage + 1;
+        setLoadingUsers(true);
+        try {
+            const users = await api.getUsers(nextPage);
+            const newUsers = Array.isArray(users) ? users : [];
+            const current = mattermostUsers as any[];
+            setMattermostUsers([...current, ...newUsers]);
+            setHasMoreUsers(users.length >= 200);
+            setUsersPage(nextPage);
+        } catch (err: any) {
+            console.error('Failed to load more users:', err);
+        } finally {
+            setLoadingUsers(false);
+        }
+    };
 
     const handleClose = () => {
         setShowAddMembersDialog(false);
@@ -92,7 +112,7 @@ export const AddMembersDialog: React.FC = () => {
     };
 
     return (
-        <div className="modal-overlay" onClick={handleClose}>
+        <div className="modal-overlay" onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
             <div className="modal-dialog1 members-modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header">
                     <h2 className="modal-dialog1__title">إدارة أعضاء المشروع</h2>
@@ -187,6 +207,17 @@ export const AddMembersDialog: React.FC = () => {
                                         );
                                     })}
                                 </div>
+                            )}
+                            {hasMoreUsers && (
+                                <button
+                                    type="button"
+                                    className="btn btn-ghost"
+                                    onClick={loadMoreUsers}
+                                    disabled={loadingUsers}
+                                    style={{ width: '100%', marginTop: '8px' }}
+                                >
+                                    {loadingUsers ? 'جارٍ التحميل...' : 'تحميل المزيد من المستخدمين'}
+                                </button>
                             )}
                         </div>
                     )}

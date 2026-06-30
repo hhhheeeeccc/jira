@@ -103,7 +103,7 @@ func (s *Store) migrate() error {
                 `UPDATE tasks SET status = project_id || '-backlog' WHERE status = 'backlog'`,
                 `UPDATE tasks SET status = project_id || '-todo' WHERE status = 'todo'`,
                 `UPDATE tasks SET status = project_id || '-in_progress' WHERE status = 'in_progress'`,
-                `UPDATE tasks SET status = project_id || '-done' WHERE status = 'done'`,
+                `UPDATE tasks SET status = project_id || '-completed' WHERE status = 'done'`,
         }
 
         for _, q := range queries {

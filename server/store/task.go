@@ -175,7 +175,7 @@ func (s *Store) UpdateTask(id string, updates map[string]interface{}) error {
         }
         args = append(args, id)
 
-        query := "UPDATE tasks SET " + join(setParts, ", ") + " WHERE id = ?"
+        query := "UPDATE tasks SET " + strings.Join(setParts, ", ") + " WHERE id = ?"
         res, err := s.db.Exec(query, args...)
         if err != nil {
                 return fmt.Errorf("update task: %w", err)
@@ -218,13 +218,4 @@ func scanTask(rows *sql.Rows) (*Task, error) {
         return t, nil
 }
 
-func join(parts []string, sep string) string {
-        result := ""
-        for i, p := range parts {
-                if i > 0 {
-                        result += sep
-                }
-                result += p
-        }
-        return result
-}
+

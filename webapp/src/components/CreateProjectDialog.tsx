@@ -5,7 +5,7 @@ import { api } from '../api/client';
 import type { Project } from '../types';
 
 export const CreateProjectDialog: React.FC = () => {
-    const { setShowCreateProjectDialog, setProjects, setSelectedProject, setError, setLoading } = useStore();
+    const { setShowCreateProjectDialog, setProjects, setSelectedProject, setProjectMembers, setProjectTasks, setProjectColumns, setError, setLoading } = useStore();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -27,6 +27,19 @@ export const CreateProjectDialog: React.FC = () => {
             const projects = await api.getProjects();
             setProjects(Array.isArray(projects) ? projects : []);
             setSelectedProject(newProject);
+            // Load project data (members, tasks, columns)
+            try {
+                const [membersData, tasksData, columnsData] = await Promise.all([
+                    api.getProjectMembers(newProject.id),
+                    api.getProjectTasks(newProject.id),
+                    api.getProjectColumns(newProject.id),
+                ]);
+                setProjectMembers(Array.isArray(membersData) ? membersData : []);
+                setProjectTasks(Array.isArray(tasksData) ? tasksData : []);
+                setProjectColumns(Array.isArray(columnsData) ? columnsData : []);
+            } catch (loadErr: any) {
+                // Non-fatal: project was created, data will load on next visit
+            }
             setShowCreateProjectDialog(false);
         } catch (err: any) {
             setError(err.message || 'فشل إنشاء المشروع');
@@ -36,7 +49,7 @@ export const CreateProjectDialog: React.FC = () => {
     };
 
     return (
-        <div className="modal-overlay" onClick={handleClose}>
+        <div className="modal-overlay" onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
             <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header">
                     <h2 className="modal-dialog1__title">إنشاء مشروع جديد</h2>

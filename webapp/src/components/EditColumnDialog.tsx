@@ -7,7 +7,7 @@ export const EditColumnDialog: React.FC = () => {
     const {
         editColumn,
         setEditColumn,
-        projectColumns,
+        selectedProject,
         setProjectColumns,
         setError,
     } = useStore();
@@ -43,9 +43,15 @@ export const EditColumnDialog: React.FC = () => {
                 title: title.trim(),
                 color: color,
             });
-            setProjectColumns(projectColumns.map(c => 
-                c.id === editColumn.id ? { ...c, title: title.trim(), color: color } : c
-            ));
+            // Re-fetch columns from server to ensure consistency
+            try {
+                const cols = await api.getProjectColumns(selectedProject!.id);
+                setProjectColumns(Array.isArray(cols) ? cols : []);
+            } catch (refErr: any) {
+                // Fallback to optimistic update
+                const currentCols = await api.getProjectColumns(selectedProject!.id);
+                setProjectColumns(Array.isArray(currentCols) ? currentCols : []);
+            }
             handleClose();
         } catch (err: any) {
             setError(err.message || 'فشل تحديث العمود');
@@ -55,7 +61,7 @@ export const EditColumnDialog: React.FC = () => {
     };
 
     return (
-        <div className="modal-overlay" onClick={handleClose}>
+        <div className="modal-overlay" onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
             <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header">
                     <h2 className="modal-dialog1__title">تعديل العمود</h2>

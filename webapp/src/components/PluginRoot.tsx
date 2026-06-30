@@ -42,6 +42,7 @@ export const PluginRoot: React.FC = () => {
     } = useStore();
 
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
+    const [loadingProject, setLoadingProject] = React.useState(false);
 
     // Load projects and current user on mount
     const loadProjects = useCallback(async () => {
@@ -103,6 +104,7 @@ export const PluginRoot: React.FC = () => {
 
     const loadProjectData = useCallback(async (project: Project) => {
         setSelectedProject(project);
+        setLoadingProject(true);
         try {
             const [membersData, tasksData, columnsData] = await Promise.all([
                 api.getProjectMembers(project.id),
@@ -114,6 +116,8 @@ export const PluginRoot: React.FC = () => {
             setProjectColumns(Array.isArray(columnsData) ? columnsData : []);
         } catch (err: any) {
             setError(err.message || 'Failed to load project data');
+        } finally {
+            setLoadingProject(false);
         }
     }, [setSelectedProject, setProjectMembers, setProjectTasks, setProjectColumns, setError]);
 
@@ -229,6 +233,14 @@ export const PluginRoot: React.FC = () => {
                     </div>
                 ) : (
                     <>
+                        {/* Loading overlay */}
+                        {loadingProject && (
+                            <div className="loading-container" style={{ marginTop: '100px' }}>
+                                <div className="loading-spinner" />
+                            </div>
+                        )}
+                        {!loadingProject && (
+                    <>
                         {/* Project Header */}
                         <div className="plugin-project-header">
                             <div className="plugin-project-header__top">
@@ -301,6 +313,8 @@ export const PluginRoot: React.FC = () => {
 
                         {/* Kanban Board */}
                         <KanbanBoard />
+                    </>
+                        )}
                     </>
                 )}
             </main>

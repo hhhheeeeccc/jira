@@ -64,10 +64,10 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 </div>
                 {!isDefaultColumn && (
                     <div className="kanban-column__actions" style={{ display: 'flex', gap: '4px' }}>
-                        <button onClick={handleEditColumn} title="تعديل العمود" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-text-muted)' }}>
+                        <button onClick={handleEditColumn} title="تعديل العمود" aria-label="تعديل العمود" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-text-muted)' }}>
                             <Edit2 size={14} />
                         </button>
-                        <button onClick={handleDeleteColumn} title="حذف العمود" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-error-text)' }}>
+                        <button onClick={handleDeleteColumn} title="حذف العمود" aria-label="حذف العمود" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-error-text)' }}>
                             <Trash2 size={14} />
                         </button>
                     </div>

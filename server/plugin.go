@@ -47,6 +47,12 @@ var validTaskColumnRe = regexp.MustCompile(`^(` + allowedTaskColumns + `)$`)
 // Valid color format checker (hex color).
 var validColorRe = regexp.MustCompile(`^#[0-9a-fA-F]{3,8}$`)
 
+// Valid date format checker (YYYY-MM-DD).
+var validDateRe = regexp.MustCompile(`^\\d{4}-\\d{2}-\\d{2}$`)
+
+// Valid time format checker (HH:MM).
+var validTimeRe = regexp.MustCompile(`^\\d{2}:\\d{2}$`)
+
 // Valid priority checker.
 var validPriorityRe = regexp.MustCompile(`^(` + allowedPriorities + `)$`)
 
@@ -163,7 +169,7 @@ func (p *Plugin) ensureBot() error {
 
 // OnActivate is called by Mattermost when the plugin is activated.
 func (p *Plugin) OnActivate() error {
-        p.API.LogInfo("Jira Project Management plugin activating", "version", p.version)
+        p.API.LogInfo("Jira Project Management plugin activating", "version", p.version, "commit", p.commit, "buildDate", p.buildDate)
 
         config := p.API.GetConfig()
         dbDir := "."
@@ -298,7 +304,7 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 
         // /api/v1/users
         if path == "/api/v1/users" && r.Method == http.MethodGet {
-                p.handleGetUsers(w, r)
+                p.handleGetUsers(w, r, userID)
                 return
         }
 
@@ -650,7 +656,7 @@ func (p *Plugin) handleCreateTask(w http.ResponseWriter, r *http.Request, projec
                 if proj, err := p.store.GetProject(projectID); err == nil && proj != nil {
                         projectName = proj.Name
                 }
-                go p.sendTaskNotification(assigneeID, userID, projectName, body.Title, priority)
+                go p.sendTaskNotification(assigneeID, userID, projectName, title, priority)
         }
         p.broadcastProjectUpdate(projectID)
         writeJSON(w, http.StatusCreated, task.ToJSON())
@@ -826,7 +832,7 @@ func (p *Plugin) handleDeleteTask(w http.ResponseWriter, r *http.Request, taskID
 // User handler
 // ========================================================================
 
-func (p *Plugin) handleGetUsers(w http.ResponseWriter, r *http.Request) {
+func (p *Plugin) handleGetUsers(w http.ResponseWriter, r *http.Request, userID string) {
         // Paginate with server-side pagination support
         page := 0
         perPage := 200

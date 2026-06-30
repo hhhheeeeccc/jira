@@ -52,7 +52,7 @@ export const AddColumnDialog: React.FC = () => {
     };
 
     return (
-        <div className="modal-overlay" onClick={handleClose}>
+        <div className="modal-overlay" onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
             <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header">
                     <h2 className="modal-dialog1__title">إضافة عمود جديد</h2>

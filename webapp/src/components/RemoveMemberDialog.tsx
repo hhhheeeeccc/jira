@@ -7,7 +7,7 @@ export const RemoveMemberDialog: React.FC = () => {
     const {
         deleteMemberInfo,
         setDeleteMemberInfo,
-        projectMembers,
+        selectedProject,
         setProjectMembers,
         setError,
     } = useStore();
@@ -25,7 +25,13 @@ export const RemoveMemberDialog: React.FC = () => {
         setError(null);
         try {
             await api.removeProjectMember(deleteMemberInfo.project_id, deleteMemberInfo.user_id);
-            setProjectMembers(projectMembers.filter(m => m.user_id !== deleteMemberInfo.user_id));
+            // Re-fetch members from server for consistency
+            try {
+                const updatedMembers = await api.getProjectMembers(deleteMemberInfo.project_id);
+                setProjectMembers(Array.isArray(updatedMembers) ? updatedMembers : []);
+            } catch (refErr: any) {
+                // fallback
+            }
             handleClose();
         } catch (err: any) {
             setError(err.message || 'فشل إزالة العضو');
@@ -35,7 +41,7 @@ export const RemoveMemberDialog: React.FC = () => {
     };
 
     return (
-        <div className="modal-overlay" style={{ zIndex: 10001 }} onClick={handleClose}>
+        <div className="modal-overlay" style={{ zIndex: 10001 }} onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
             <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--mm-error-text)' }}>

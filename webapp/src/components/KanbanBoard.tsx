@@ -107,12 +107,21 @@ export const KanbanBoard: React.FC = () => {
             }
         }
 
-        // Calculate new sort order if dropped on a specific task
+        // Calculate new sort order
         if (over.data?.current?.type === 'task' && over.id !== active.id) {
+            // Dropped on a specific task: place before it
             const overTask = projectTasks.find(t => t.id === over.id);
             if (overTask) {
                 updates.sort_order = overTask.sort_order;
             }
+        } else if (task.status !== targetColumnId) {
+            // Dropped on a column (not a task): place at end
+            const targetColumnTasks = projectTasks
+                .filter(t => t.status === targetColumnId)
+                .sort((a, b) => a.sort_order - b.sort_order);
+            updates.sort_order = targetColumnTasks.length > 0
+                ? targetColumnTasks[targetColumnTasks.length - 1].sort_order + 1
+                : 0;
         }
 
         try {

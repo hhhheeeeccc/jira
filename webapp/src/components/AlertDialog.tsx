@@ -12,7 +12,7 @@ export const AlertDialog: React.FC = () => {
     };
 
     return (
-        <div className="modal-overlay" style={{ zIndex: 10002 }} onClick={handleClose}>
+        <div className="modal-overlay" style={{ zIndex: 10002 }} onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
             <div className="modal-dialog1" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--mm-error-text)' }}>

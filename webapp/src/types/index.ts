@@ -26,7 +26,7 @@ export interface Task {
     due_date: string | null;
     due_time: string | null;
     priority: 'low' | 'medium' | 'high' | 'critical';
-    status: 'backlog' | 'todo' | 'in_progress' | 'done';
+    status: string;
     sort_order: number;
     project_id: string;
     assignee_id: string | null;

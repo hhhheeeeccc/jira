@@ -57,7 +57,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
         setDeleteTaskInfo(task);
     };
 
-    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !task.status.endsWith('-completed') && !task.status.endsWith('-done');
+    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !task.status.endsWith('-completed');
 
     const formatDueDate = (dateStr: string) => {
         const date = new Date(dateStr);
@@ -98,6 +98,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
                 onClick={handleDelete}
                 disabled={deleting}
                 title="حذف المهمة"
+                aria-label="حذف المهمة"
             >
                 <Trash2 size={14} />
             </button>
