@@ -14,6 +14,9 @@ declare global {
 const GlobalHeaderCenter = () => { return null; };
 const GlobalHeaderRight = () => { return null; };
 
+// WebSocket event name must match the server constant: "custom_" + pluginID + "_project_updated"
+const WS_EVENT_PROJECT_UPDATED = 'custom_' + PLUGIN_ID + '_project_updated';
+
 class Plugin {
     initialize(registry: any) {
         // Register as a product so the plugin gets its own sidebar icon,
@@ -31,7 +34,7 @@ class Plugin {
 
         // WebSocket real-time sync
         registry.registerWebSocketEventHandler(
-            'custom_com.workspace.plugin.jira_project_updated',
+            WS_EVENT_PROJECT_UPDATED,
             (msg: any) => {
                 const data = msg.data || {};
                 window.dispatchEvent(new CustomEvent('jira_project_updated', { detail: data }));

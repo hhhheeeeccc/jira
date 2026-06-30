@@ -158,6 +158,7 @@ export const PluginRoot: React.FC = () => {
                         <button
                             className="btn-create-project"
                             onClick={() => setShowCreateProjectDialog(true)}
+                            aria-label="إنشاء مشروع جديد"
                         >
                             <Plus />
                             <span>مشروع جديد</span>
@@ -198,7 +199,7 @@ export const PluginRoot: React.FC = () => {
             {/* Main Content */}
             <main className="plugin-main">
                 <div className="mobile-top-bar">
-                    <button className="mobile-menu-btn" onClick={() => setIsMobileSidebarOpen(true)}>
+                    <button className="mobile-menu-btn" onClick={() => setIsMobileSidebarOpen(true)} aria-label="فتح القائمة">
                         <Menu size={20} />
                     </button>
                     <span className="mobile-top-bar__title">مشاريع جيرا</span>
@@ -208,7 +209,7 @@ export const PluginRoot: React.FC = () => {
                     <div className="error-banner">
                         <AlertCircle />
                         <span>{error}</span>
-                        <button className="error-banner__close" onClick={() => setError(null)}>
+                        <button className="error-banner__close" onClick={() => setError(null)} aria-label="إغلاق الخطأ">
                             <X size={14} />
                         </button>
                     </div>
@@ -245,6 +246,7 @@ export const PluginRoot: React.FC = () => {
                                     <button
                                         className="btn-outline"
                                         onClick={() => setShowAddMembersDialog(true)}
+                                        aria-label="إدارة أعضاء المشروع"
                                     >
                                         <Users />
                                         <span>الأعضاء</span>
@@ -252,6 +254,7 @@ export const PluginRoot: React.FC = () => {
                                     <button
                                         className="btn-danger-outline"
                                         onClick={handleDeleteProject}
+                                        aria-label="حذف المشروع"
                                     >
                                         <Trash2 />
                                         <span>حذف</span>
