@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { LayoutDashboard, Plus, Users, Trash2, AlertCircle, X, Menu } from 'lucide-react';
+import { LayoutDashboard, Plus, Users, Trash2, AlertCircle, X, Menu, Search } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
 import type { Project } from '../types';
@@ -8,6 +8,7 @@ import { AddMembersDialog } from './AddMembersDialog';
 import { AddTaskDialog } from './AddTaskDialog';
 import { AddColumnDialog } from './AddColumnDialog';
 import { EditColumnDialog } from './EditColumnDialog';
+import { EditTaskDialog } from './EditTaskDialog';
 import { DeleteColumnDialog } from './DeleteColumnDialog';
 import { DeleteProjectDialog } from './DeleteProjectDialog';
 import { DeleteTaskDialog } from './DeleteTaskDialog';
@@ -39,6 +40,8 @@ export const PluginRoot: React.FC = () => {
         setShowCreateProjectDialog,
         setShowAddMembersDialog,
         setDeleteProjectInfo,
+        taskSearchQuery,
+        setTaskSearchQuery,
     } = useStore();
 
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
@@ -63,6 +66,7 @@ export const PluginRoot: React.FC = () => {
 
     useEffect(() => {
         loadProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // WebSocket sync listener
@@ -131,7 +135,14 @@ export const PluginRoot: React.FC = () => {
         setDeleteProjectInfo(selectedProject);
     };
 
-    const totalTasks = projectTasks.length;
+    const filteredTasks = taskSearchQuery.trim()
+        ? projectTasks.filter(t =>
+            t.title.toLowerCase().includes(taskSearchQuery.toLowerCase()) ||
+            (t.description && t.description.toLowerCase().includes(taskSearchQuery.toLowerCase()))
+          )
+        : projectTasks;
+
+    const totalTasks = filteredTasks.length;
 
     if (loading && !selectedProject && projects.length === 0) {
         return (
@@ -311,8 +322,31 @@ export const PluginRoot: React.FC = () => {
                             </div>
                         </div>
 
+                        {/* Task Search */}
+                        <div className="plugin-project-header__search" style={{ marginBottom: '16px' }}>
+                            <div style={{ position: 'relative' }}>
+                                <Search size={15} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--mm-text-muted)' }} />
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="ابحث في المهام..."
+                                    value={taskSearchQuery}
+                                    onChange={e => setTaskSearchQuery(e.target.value)}
+                                    style={{ paddingLeft: '32px', paddingRight: '32px', width: '100%', maxWidth: '300px' }}
+                                />
+                                {taskSearchQuery && (
+                                    <button
+                                        onClick={() => setTaskSearchQuery('')}
+                                        style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-text-muted)', padding: 2 }}
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
                         {/* Kanban Board */}
-                        <KanbanBoard />
+                        <KanbanBoard filteredTasks={filteredTasks} />
                     </>
                         )}
                     </>
@@ -325,6 +359,7 @@ export const PluginRoot: React.FC = () => {
             <AddTaskDialog />
             <AddColumnDialog />
             <EditColumnDialog />
+            <EditTaskDialog />
             <DeleteColumnDialog />
             <DeleteProjectDialog />
             <DeleteTaskDialog />

@@ -222,17 +222,17 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
         path := r.URL.Path
 
         // /api/v1/me
-        if match(path, "/api/v1/me") && r.Method == http.MethodGet {
+        if path == "/api/v1/me" && r.Method == http.MethodGet {
                 p.handleGetMe(w, r, userID)
                 return
         }
 
         // ---------- Projects ----------
         switch {
-        case match(path, "/api/v1/projects") && r.Method == http.MethodGet:
+        case path == "/api/v1/projects" && r.Method == http.MethodGet:
                 p.handleListProjects(w, r, userID)
                 return
-        case match(path, "/api/v1/projects") && r.Method == http.MethodPost:
+        case path == "/api/v1/projects" && r.Method == http.MethodPost:
                 p.handleCreateProject(w, r, userID)
                 return
         }
@@ -304,7 +304,7 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
         }
 
         // /api/v1/users
-        if path == "/api/v1/users" && r.Method == http.MethodGet {
+        if r.URL.Path == "/api/v1/users" && r.Method == http.MethodGet {
                 p.handleGetUsers(w, r, userID)
                 return
         }
@@ -621,6 +621,18 @@ func (p *Plugin) handleCreateTask(w http.ResponseWriter, r *http.Request, projec
                 return
         }
 
+        // Validate due_date format (YYYY-MM-DD)
+        if body.DueDate != "" && !validDateRe.MatchString(body.DueDate) {
+                writeError(w, http.StatusBadRequest, "due_date must be in YYYY-MM-DD format")
+                return
+        }
+
+        // Validate due_time format (HH:MM)
+        if body.DueTime != "" && !validTimeRe.MatchString(body.DueTime) {
+                writeError(w, http.StatusBadRequest, "due_time must be in HH:MM format")
+                return
+        }
+
         // Validate status against actual project columns
         status := body.Status
         if status == "" {
@@ -647,7 +659,7 @@ func (p *Plugin) handleCreateTask(w http.ResponseWriter, r *http.Request, projec
         task, err := p.store.CreateTask(
                 projectID,
                 strings.TrimSpace(body.Title),
-                body.Description,
+                strings.TrimSpace(body.Description),
                 body.DueDate,
                 body.DueTime,
                 priority,
@@ -1011,6 +1023,8 @@ func (p *Plugin) handleCreateColumn(w http.ResponseWriter, r *http.Request, proj
                         }
                 }
         }
+        // Fallback: return the column object (timestamps will be zero, but this is non-fatal)
+        p.API.LogInfo("Failed to re-fetch column after creation, returning basic column data")
         p.broadcastProjectUpdate(projectID)
         writeJSON(w, http.StatusCreated, col)
 }
@@ -1151,11 +1165,6 @@ func (p *Plugin) handleGetMe(w http.ResponseWriter, r *http.Request, userID stri
 // writeError writes a JSON error payload.
 func writeError(w http.ResponseWriter, code int, msg string) {
         writeJSON(w, code, map[string]string{"error": msg})
-}
-
-// match checks if path equals the given pattern exactly.
-func match(path, pattern string) bool {
-        return path == pattern
 }
 
 // extractID tries to split path as prefix+"/"+id+remainder.

@@ -11,7 +11,7 @@ export const DeleteColumnDialog: React.FC = () => {
     const {
         deleteColumnInfo,
         setDeleteColumnInfo,
-        projectColumns,
+        selectedProject,
         setProjectColumns,
         setError,
     } = useStore();
@@ -29,7 +29,15 @@ export const DeleteColumnDialog: React.FC = () => {
         setError(null);
         try {
             await api.deleteColumn(deleteColumnInfo.id);
-            setProjectColumns(projectColumns.filter(c => c.id !== deleteColumnInfo.id));
+            // Re-fetch columns from server for consistency
+            if (selectedProject) {
+                try {
+                    const cols = await api.getProjectColumns(selectedProject.id);
+                    setProjectColumns(Array.isArray(cols) ? cols : []);
+                } catch (refErr: any) {
+                    setError(refErr.message || 'فشل تحديث الأعمدة');
+                }
+            }
             handleClose();
         } catch (err: any) {
             setError(err.message || 'فشل حذف العمود');

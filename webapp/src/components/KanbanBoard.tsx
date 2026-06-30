@@ -18,13 +18,17 @@ import { type Task, type TaskStatus } from '../types';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskCard } from './TaskCard';
 
-export const KanbanBoard: React.FC = () => {
+interface KanbanBoardProps {
+    filteredTasks?: Task[];
+}
+
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({ filteredTasks }) => {
     const {
         selectedProject,
         projectTasks,
+        setProjectTasks,
         projectMembers,
         projectColumns,
-        setProjectTasks,
         setShowAddColumnDialog,
         setError,
     } = useStore();
@@ -40,8 +44,10 @@ export const KanbanBoard: React.FC = () => {
         })
     );
 
+    const tasksToUse = filteredTasks || projectTasks;
+
     const getColumnTasks = (columnId: string): Task[] => {
-        return projectTasks
+        return tasksToUse
             .filter(t => t.status === columnId)
             .sort((a, b) => a.sort_order - b.sort_order);
     };
@@ -52,7 +58,7 @@ export const KanbanBoard: React.FC = () => {
     };
 
     const handleDragStart = (event: DragStartEvent) => {
-        const task = projectTasks.find(t => t.id === event.active.id);
+        const task = tasksToUse.find(t => t.id === event.active.id);
         if (task) {
             setActiveTask(task);
         }
@@ -74,7 +80,7 @@ export const KanbanBoard: React.FC = () => {
         if (!over) return;
 
         const taskId = active.id as string;
-        const task = projectTasks.find(t => t.id === taskId);
+        const task = tasksToUse.find(t => t.id === taskId);
         if (!task) return;
 
         // Determine the target column

@@ -23,7 +23,9 @@ interface AppState {
     deleteTaskInfo: Task | null;
     deleteProjectInfo: Project | null;
     deleteMemberInfo: ProjectMember | null;
+    editTaskInfo: Task | null;
     alertMessage: string | null;
+    taskSearchQuery: string;
 
     // Actions
     setProjects: (projects: Project[]) => void;
@@ -44,7 +46,9 @@ interface AppState {
     setDeleteTaskInfo: (task: Task | null) => void;
     setDeleteProjectInfo: (project: Project | null) => void;
     setDeleteMemberInfo: (member: ProjectMember | null) => void;
+    setEditTaskInfo: (task: Task | null) => void;
     setAlertMessage: (message: string | null) => void;
+    setTaskSearchQuery: (query: string) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -67,7 +71,9 @@ export const useStore = create<AppState>((set) => ({
     deleteTaskInfo: null,
     deleteProjectInfo: null,
     deleteMemberInfo: null,
+    editTaskInfo: null,
     alertMessage: null,
+    taskSearchQuery: '',
 
     setProjects: (projects) => set({ projects }),
     setSelectedProject: (project) => set({ selectedProject: project }),
@@ -87,5 +93,7 @@ export const useStore = create<AppState>((set) => ({
     setDeleteTaskInfo: (task) => set({ deleteTaskInfo: task }),
     setDeleteProjectInfo: (project) => set({ deleteProjectInfo: project }),
     setDeleteMemberInfo: (member) => set({ deleteMemberInfo: member }),
+    setEditTaskInfo: (task) => set({ editTaskInfo: task }),
     setAlertMessage: (message) => set({ alertMessage: message }),
+    setTaskSearchQuery: (query) => set({ taskSearchQuery: query }),
 }));

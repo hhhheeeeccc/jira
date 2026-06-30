@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Trash2, CalendarDays, Clock } from 'lucide-react';
+import { Trash2, CalendarDays, Clock, Edit2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
 import type { Task, ProjectMember } from '../types';
@@ -21,7 +21,7 @@ interface TaskCardProps {
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOverlay = false, columnColor }) => {
-    const { selectedProject, setProjectTasks, setError, setDeleteTaskInfo } = useStore();
+    const { selectedProject, setProjectTasks, setError, setDeleteTaskInfo, setEditTaskInfo } = useStore();
     const [deleting, setDeleting] = React.useState(false);
 
     const {
@@ -55,6 +55,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
     const handleDelete = async (e: React.MouseEvent) => {
         e.stopPropagation();
         setDeleteTaskInfo(task);
+    };
+
+    const handleEdit = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEditTaskInfo(task);
     };
 
     const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !task.status.endsWith('-completed');
@@ -93,6 +98,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
             {...attributes}
             {...listeners}
         >
+            <button
+                className="task-card__edit"
+                onClick={handleEdit}
+                title="تعديل المهمة"
+                aria-label="تعديل المهمة"
+            >
+                <Edit2 size={14} />
+            </button>
+
             <button
                 className="task-card__delete"
                 onClick={handleDelete}

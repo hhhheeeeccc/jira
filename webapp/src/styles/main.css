@@ -694,8 +694,33 @@
     padding: 0;
 }
 
+.task-card__edit {
+    position: absolute;
+    top: 8px;
+    left: 38px;
+    width: 26px;
+    height: 26px;
+    border: none;
+    background: transparent;
+    color: var(--mm-text-muted);
+    border-radius: var(--mm-radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all var(--mm-transition);
+    padding: 0;
+}
+
+.task-card:hover .task-card__edit,
 .task-card:hover .task-card__delete {
     opacity: 1;
+}
+
+.task-card__edit:hover {
+    background: rgba(0, 152, 126, 0.1);
+    color: var(--mm-primary);
 }
 
 .task-card__delete:hover {
