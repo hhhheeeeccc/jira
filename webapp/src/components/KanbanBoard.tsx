@@ -28,14 +28,7 @@ export const KanbanBoard: React.FC = () => {
         setProjectColumns,
         setShowAddColumnDialog,
         setError,
-        currentUser,
     } = useStore();
-
-    const isProjectAdmin = React.useMemo(() => {
-        if (!currentUser || !selectedProject) return false;
-        const member = projectMembers.find(m => m.user_id === currentUser.id);
-        return member?.role === 'admin';
-    }, [currentUser, selectedProject, projectMembers]);
 
     const [activeTask, setActiveTask] = React.useState<Task | null>(null);
     const [activeOverColumnId, setActiveOverColumnId] = React.useState<string | null>(null);
@@ -160,32 +153,30 @@ export const KanbanBoard: React.FC = () => {
                     />
                 ))}
 
-                {isProjectAdmin && (
-                    <div className="add-column-container" style={{ minWidth: 280, padding: '0 8px' }}>
-                        <button 
-                            onClick={handleAddColumn}
-                            style={{
-                                width: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 8,
-                                padding: '12px',
-                                background: 'var(--mm-surface)',
-                                border: '1px dashed var(--mm-border)',
-                                borderRadius: 'var(--mm-radius)',
-                                color: 'var(--mm-text-muted)',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--mm-text-muted)'}
-                            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--mm-border)'}
-                        >
-                            <Plus size={16} />
-                            <span>إضافة عمود</span>
-                        </button>
-                    </div>
-                )}
+                <div className="add-column-container" style={{ minWidth: 280, padding: '0 8px' }}>
+                    <button 
+                        onClick={handleAddColumn}
+                        style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            padding: '12px',
+                            background: 'var(--mm-surface)',
+                            border: '1px dashed var(--mm-border)',
+                            borderRadius: 'var(--mm-radius)',
+                            color: 'var(--mm-text-muted)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--mm-text-muted)'}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--mm-border)'}
+                    >
+                        <Plus size={16} />
+                        <span>إضافة عمود</span>
+                    </button>
+                </div>
 
                 <DragOverlay dropAnimation={{
                     duration: 250,

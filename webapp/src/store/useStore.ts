@@ -21,7 +21,6 @@ interface AppState {
     editColumn: KanbanColumn | null;
     deleteColumnInfo: KanbanColumn | null;
     deleteTaskInfo: Task | null;
-    selectedTaskDetails: Task | null;
     deleteProjectInfo: Project | null;
     deleteMemberInfo: ProjectMember | null;
     alertMessage: string | null;
@@ -43,7 +42,6 @@ interface AppState {
     setEditColumn: (column: KanbanColumn | null) => void;
     setDeleteColumnInfo: (column: KanbanColumn | null) => void;
     setDeleteTaskInfo: (task: Task | null) => void;
-    setSelectedTaskDetails: (task: Task | null) => void;
     setDeleteProjectInfo: (project: Project | null) => void;
     setDeleteMemberInfo: (member: ProjectMember | null) => void;
     setAlertMessage: (message: string | null) => void;
@@ -67,7 +65,6 @@ export const useStore = create<AppState>((set) => ({
     editColumn: null,
     deleteColumnInfo: null,
     deleteTaskInfo: null,
-    selectedTaskDetails: null,
     deleteProjectInfo: null,
     deleteMemberInfo: null,
     alertMessage: null,
@@ -88,7 +85,6 @@ export const useStore = create<AppState>((set) => ({
     setEditColumn: (column) => set({ editColumn: column }),
     setDeleteColumnInfo: (column) => set({ deleteColumnInfo: column }),
     setDeleteTaskInfo: (task) => set({ deleteTaskInfo: task }),
-    setSelectedTaskDetails: (task) => set({ selectedTaskDetails: task }),
     setDeleteProjectInfo: (project) => set({ deleteProjectInfo: project }),
     setDeleteMemberInfo: (member) => set({ deleteMemberInfo: member }),
     setAlertMessage: (message) => set({ alertMessage: message }),
