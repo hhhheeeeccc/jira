@@ -25,7 +25,6 @@ export const KanbanBoard: React.FC = () => {
         projectMembers,
         projectColumns,
         setProjectTasks,
-        setProjectColumns,
         setShowAddColumnDialog,
         setError,
     } = useStore();
@@ -45,10 +44,6 @@ export const KanbanBoard: React.FC = () => {
         return projectTasks
             .filter(t => t.status === columnId)
             .sort((a, b) => a.sort_order - b.sort_order);
-    };
-
-    const getColumnTaskIds = (columnId: string): string[] => {
-        return getColumnTasks(columnId).map(t => t.id);
     };
 
     const handleAddColumn = () => {
@@ -106,8 +101,8 @@ export const KanbanBoard: React.FC = () => {
         if (task.status !== targetColumnId) {
             updates.status = targetColumnId as TaskStatus;
 
-            // When dragging to backlog, clear assignee
-            if (targetColumnId === 'backlog') {
+            // When dragging to a backlog column, clear assignee
+            if (targetColumnId.endsWith('-backlog')) {
                 updates.assignee_id = null;
             }
         }
