@@ -91,7 +91,7 @@ export const api = {
             body: JSON.stringify(data),
         })).then(r => handleResponse(r)),
 
-    updateColumn: (columnId: string, data: { title: string; color?: string; sort_order?: number; project_id?: string }): Promise<any> =>
+    updateColumn: (columnId: string, data: { title: string; color?: string; sort_order?: number }): Promise<any> =>
         fetch(`${BASE_URL}/columns/${columnId}`, getOptions({
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -105,6 +105,8 @@ export const api = {
     getMe: (): Promise<{ id: string; is_admin: boolean }> =>
         fetch(`${BASE_URL}/me`, getOptions()).then(r => handleResponse(r)),
 
-    getUsers: (): Promise<any[]> =>
-        fetch(`${BASE_URL}/users`, getOptions()).then(r => handleResponse(r)),
+    getUsers: (page?: number): Promise<any[]> => {
+        const params = page ? `?page=${page}` : '';
+        return fetch(`${BASE_URL}/users${params}`, getOptions()).then(r => handleResponse(r));
+    },
 };

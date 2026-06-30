@@ -119,7 +119,10 @@ func (s *Store) migrate() error {
                 LEFT JOIN project_columns pc ON p.id = pc.project_id
                 WHERE pc.id IS NULL
         `)
-        if err == nil {
+        if err != nil {
+                // Log but don't fail — this is a best-effort migration.
+                fmt.Printf("jira plugin: warning: migration query failed: %v\n", err)
+        } else {
                 defer rows.Close()
                 var projectIDs []string
                 for rows.Next() {
@@ -128,7 +131,9 @@ func (s *Store) migrate() error {
                                 projectIDs = append(projectIDs, pid)
                         }
                 }
-                if err := rows.Err(); err == nil {
+                if err := rows.Err(); err != nil {
+                        fmt.Printf("jira plugin: warning: migration row iteration failed: %v\n", err)
+                } else {
                         for _, pid := range projectIDs {
                                 defaultCols := []struct{ id, title, color string }{
                                         {pid + "-backlog", "الخلفية", "#64748b"},
@@ -137,10 +142,12 @@ func (s *Store) migrate() error {
                                         {pid + "-completed", "مكتمل", "#10b981"},
                                 }
                                 for i, c := range defaultCols {
-                                        s.db.Exec(`
+                                        if _, execErr := s.db.Exec(`
                                                 INSERT OR IGNORE INTO project_columns (id, project_id, title, color, sort_order)
                                                 VALUES (?, ?, ?, ?, ?)
-                                        `, c.id, pid, c.title, c.color, i)
+                                        `, c.id, pid, c.title, c.color, i); execErr != nil {
+                                                fmt.Printf("jira plugin: warning: failed to create default column for %s: %v\n", pid, execErr)
+                                        }
                                 }
                         }
                 }

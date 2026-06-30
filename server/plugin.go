@@ -443,14 +443,16 @@ func (p *Plugin) handleGetMembers(w http.ResponseWriter, r *http.Request, projec
 }
 
 func (p *Plugin) handleAddMembers(w http.ResponseWriter, r *http.Request, projectID string, userID string) {
-        // Authorization: any project member can add new members
-        if ok, err := p.store.IsProjectMember(projectID, userID); err != nil {
-                p.API.LogError("Failed to check membership", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to check membership")
-                return
-        } else if !ok {
-                writeError(w, http.StatusForbidden, "you are not a member of this project")
-                return
+        // Authorization: only project admins (or system admins) can add new members
+        if !p.isUserSystemAdmin(userID) {
+                if ok, err := p.store.IsProjectAdmin(projectID, userID); err != nil {
+                        p.API.LogError("Failed to check project admin", "error", err.Error())
+                        writeError(w, http.StatusInternalServerError, "failed to check permissions")
+                        return
+                } else if !ok {
+                        writeError(w, http.StatusForbidden, "only project admins can add members")
+                        return
+                }
         }
 
         var body struct {
@@ -889,14 +891,16 @@ func (p *Plugin) handleGetColumns(w http.ResponseWriter, r *http.Request, projec
 }
 
 func (p *Plugin) handleCreateColumn(w http.ResponseWriter, r *http.Request, projectID string, userID string) {
-        // Authorization: user must be a project member
-        if ok, err := p.store.IsProjectMember(projectID, userID); err != nil {
-                p.API.LogError("Failed to check membership", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to check membership")
-                return
-        } else if !ok {
-                writeError(w, http.StatusForbidden, "you are not a member of this project")
-                return
+        // Authorization: only project admins (or system admins) can create columns
+        if !p.isUserSystemAdmin(userID) {
+                if ok, err := p.store.IsProjectAdmin(projectID, userID); err != nil {
+                        p.API.LogError("Failed to check project admin", "error", err.Error())
+                        writeError(w, http.StatusInternalServerError, "failed to check permissions")
+                        return
+                } else if !ok {
+                        writeError(w, http.StatusForbidden, "only project admins can create columns")
+                        return
+                }
         }
 
         var body struct {
@@ -982,12 +986,22 @@ func (p *Plugin) handleUpdateColumn(w http.ResponseWriter, r *http.Request, colI
                 writeError(w, http.StatusBadRequest, "invalid request body")
                 return
         }
-        if strings.TrimSpace(req.Title) == "" {
+        title := strings.TrimSpace(req.Title)
+        if title == "" {
                 writeError(w, http.StatusBadRequest, "column title is required")
                 return
         }
+        if len(title) > maxColumnNameLen {
+                writeError(w, http.StatusBadRequest, fmt.Sprintf("column title must be at most %d characters", maxColumnNameLen))
+                return
+        }
+        // Validate color format if provided
+        if req.Color != "" && !validColorRe.MatchString(req.Color) {
+                writeError(w, http.StatusBadRequest, "invalid color format")
+                return
+        }
 
-        if err := p.store.UpdateColumn(colID, req.Title, req.Color, req.SortOrder); err != nil {
+        if err := p.store.UpdateColumn(colID, title, req.Color, req.SortOrder); err != nil {
                 p.API.LogError("Failed to update column", "error", err.Error())
                 writeError(w, http.StatusInternalServerError, "failed to update column")
                 return
