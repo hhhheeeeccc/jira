@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { X } from 'lucide-react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
 import type { Project } from '../types';
 
 export const CreateProjectDialog: React.FC = () => {
+    const dialogRef = useRef<HTMLDivElement>(null);
+    useFocusTrap(dialogRef, true);
+
     const { setShowCreateProjectDialog, setProjects, setSelectedProject, setProjectMembers, setProjectTasks, setProjectColumns, setError, setLoading } = useStore();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -50,7 +54,7 @@ export const CreateProjectDialog: React.FC = () => {
 
     return (
         <div className="modal-overlay" onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
-            <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
+            <div className="modal-dialog1" ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header">
                     <h2 className="modal-dialog1__title">إنشاء مشروع جديد</h2>
                     <button className="modal-dialog1__close" onClick={handleClose}>

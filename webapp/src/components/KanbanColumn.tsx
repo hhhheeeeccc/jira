@@ -15,6 +15,9 @@ interface KanbanColumnProps {
     isDragOver: boolean;
 }
 
+// Default column suffixes used to determine if a column is a default (non-deletable) column.
+const DEFAULT_COLUMN_SUFFIXES = ['-backlog', '-todo', '-in_progress', '-completed'];
+
 export const KanbanColumn: React.FC<KanbanColumnProps> = ({
     id,
     title,
@@ -51,7 +54,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
     const showDragHighlight = isDragOver || isOver;
 
-    const isDefaultColumn = ['-backlog', '-todo', '-in_progress', '-completed'].some(suffix => id.endsWith(suffix));
+    const isDefaultColumn = DEFAULT_COLUMN_SUFFIXES.some(suffix => id.endsWith(suffix));
 
     return (
         <div className={`kanban-column ${showDragHighlight ? 'kanban-column--drag-over' : ''}`}>

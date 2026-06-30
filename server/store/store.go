@@ -4,6 +4,7 @@ import (
         "crypto/rand"
         "database/sql"
         "fmt"
+        "time"
 
         _ "github.com/mattn/go-sqlite3"
 )
@@ -16,7 +17,13 @@ type Store struct {
 // newID generates a random UUID v4 string.
 func newID() string {
         b := make([]byte, 16)
-        _, _ = rand.Read(b)
+        if _, err := rand.Read(b); err != nil {
+                // crypto/rand should never fail on modern Linux, but if it does
+                // fall back to a time-based ID to avoid crashing the plugin.
+                fmt.Printf("jira plugin: ERROR: crypto/rand failed: %v\n", err)
+                ts := time.Now().UnixNano()
+                b = []byte(fmt.Sprintf("%016x%08x", ts, ts&0xFFFFFFFF))
+        }
         b[6] = (b[6] & 0x0f) | 0x40 // version 4
         b[8] = (b[8] & 0x3f) | 0x80 // variant 2
         return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
@@ -56,8 +63,9 @@ func (s *Store) DB() *sql.DB {
 }
 
 // migrate creates the required tables if they do not already exist.
+// Uses SQLite PRAGMA user_version to skip already-applied migrations.
 func (s *Store) migrate() error {
-        queries := []string{
+        schemaQueries := []string{
                 `CREATE TABLE IF NOT EXISTS projects (
                         id          TEXT PRIMARY KEY,
                         name        TEXT NOT NULL,
@@ -100,16 +108,33 @@ func (s *Store) migrate() error {
                         updated_at  DATETIME NOT NULL DEFAULT (datetime('now')),
                         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
                 )`,
-                `UPDATE tasks SET status = project_id || '-backlog' WHERE status = 'backlog'`,
-                `UPDATE tasks SET status = project_id || '-todo' WHERE status = 'todo'`,
-                `UPDATE tasks SET status = project_id || '-in_progress' WHERE status = 'in_progress'`,
-                `UPDATE tasks SET status = project_id || '-completed' WHERE status = 'done'`,
         }
 
-        for _, q := range queries {
+        for _, q := range schemaQueries {
                 if _, err := s.db.Exec(q); err != nil {
-                        return fmt.Errorf("migration error: %w", err)
+                        return fmt.Errorf("schema creation error: %w", err)
                 }
+        }
+
+        // Check current migration version.
+        var version int
+        s.db.QueryRow("PRAGMA user_version").Scan(&version)
+
+        // Migration v1: Migrate legacy status values to column-prefixed format.
+        if version < 1 {
+                v1Queries := []string{
+                        `UPDATE tasks SET status = project_id || '-backlog' WHERE status = 'backlog'`,
+                        `UPDATE tasks SET status = project_id || '-todo' WHERE status = 'todo'`,
+                        `UPDATE tasks SET status = project_id || '-in_progress' WHERE status = 'in_progress'`,
+                        `UPDATE tasks SET status = project_id || '-completed' WHERE status = 'done'`,
+                }
+                for _, q := range v1Queries {
+                        if _, err := s.db.Exec(q); err != nil {
+                                fmt.Printf("jira plugin: warning: v1 migration error: %v\n", err)
+                        }
+                }
+                // Mark v1 as applied.
+                s.db.Exec("PRAGMA user_version = 1")
         }
 
         // One-time migration: create default columns for projects that have none.

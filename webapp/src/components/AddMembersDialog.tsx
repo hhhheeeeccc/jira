@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { X, UserMinus, UserPlus, Search } from 'lucide-react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
 
 export const AddMembersDialog: React.FC = () => {
+    const dialogRef = useRef<HTMLDivElement>(null);
+
     const {
         selectedProject,
         projectMembers,
@@ -14,6 +17,8 @@ export const AddMembersDialog: React.FC = () => {
         setError,
         setDeleteMemberInfo,
     } = useStore();
+
+    useFocusTrap(dialogRef, !!selectedProject);
 
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
     const [removingUserId, setRemovingUserId] = useState<string | null>(null);
@@ -113,7 +118,7 @@ export const AddMembersDialog: React.FC = () => {
 
     return (
         <div className="modal-overlay" onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
-            <div className="modal-dialog1 members-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-dialog1 members-modal" ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header">
                     <h2 className="modal-dialog1__title">إدارة أعضاء المشروع</h2>
                     <button className="modal-dialog1__close" onClick={handleClose}>

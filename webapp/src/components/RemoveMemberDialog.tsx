@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
 
 export const RemoveMemberDialog: React.FC = () => {
+    const dialogRef = useRef<HTMLDivElement>(null);
+    useFocusTrap(dialogRef, true);
+
     const {
         deleteMemberInfo,
         setDeleteMemberInfo,
@@ -42,7 +46,7 @@ export const RemoveMemberDialog: React.FC = () => {
 
     return (
         <div className="modal-overlay" style={{ zIndex: 10001 }} onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
-            <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
+            <div className="modal-dialog1" ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--mm-error-text)' }}>
                         <AlertTriangle size={24} />

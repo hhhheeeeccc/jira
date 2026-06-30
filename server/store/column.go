@@ -81,7 +81,8 @@ func (s *Store) GetProjectColumns(projectID string) ([]*Column, error) {
         return columns, nil
 }
 
-// UpdateColumn updates an existing column
+// UpdateColumn updates an existing column.
+// Returns sql.ErrNoRows if the column does not exist.
 func (s *Store) UpdateColumn(id string, title, color string, sortOrder *int) error {
         var query string
         var args []interface{}
@@ -94,19 +95,29 @@ func (s *Store) UpdateColumn(id string, title, color string, sortOrder *int) err
                 args = []interface{}{title, color, id}
         }
 
-        _, err := s.db.Exec(query, args...)
+        res, err := s.db.Exec(query, args...)
         if err != nil {
                 return fmt.Errorf("failed to update column: %w", err)
+        }
+        n, _ := res.RowsAffected()
+        if n == 0 {
+                return sql.ErrNoRows
         }
         return nil
 }
 
-// DeleteColumn deletes a column. Note: UI should handle warning about orphaned tasks or we should move them.
+// DeleteColumn deletes a column.
+// Returns sql.ErrNoRows if the column does not exist.
+// Note: UI should handle warning about orphaned tasks or we should move them.
 func (s *Store) DeleteColumn(id string) error {
         query := `DELETE FROM project_columns WHERE id = ?`
-        _, err := s.db.Exec(query, id)
+        res, err := s.db.Exec(query, id)
         if err != nil {
                 return fmt.Errorf("failed to delete column: %w", err)
+        }
+        n, _ := res.RowsAffected()
+        if n == 0 {
+                return sql.ErrNoRows
         }
         return nil
 }

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, CalendarDays, Clock, Flag, User } from 'lucide-react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
 import type { TaskStatus } from '../types';
@@ -12,6 +13,9 @@ const PRIORITY_OPTIONS = [
 ] as const;
 
 export const AddTaskDialog: React.FC = () => {
+    const dialogRef = useRef<HTMLDivElement>(null);
+    useFocusTrap(dialogRef, true);
+
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [dueDate, setDueDate] = useState('');
@@ -61,7 +65,7 @@ export const AddTaskDialog: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        const isFormValid = title.trim() && description.trim() && dueDate && dueTime && priority && assigneeId;
+        const isFormValid = title.trim() && dueDate && dueTime && priority && assigneeId;
         if (!selectedProject || !isFormValid) return;
 
         setSubmitting(true);
@@ -96,7 +100,7 @@ export const AddTaskDialog: React.FC = () => {
 
     return (
         <div className="modal-overlay" onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
-            <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
+            <div className="modal-dialog1" ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header">
                     <h2 className="modal-dialog1__title">إضافة مهمة جديدة</h2>
                     <button className="modal-dialog1__close" onClick={handleClose}>
@@ -122,14 +126,13 @@ export const AddTaskDialog: React.FC = () => {
 
                         {/* Description */}
                         <div className="form-group">
-                            <label className="form-label">الوصف *</label>
+                            <label className="form-label">الوصف</label>
                             <textarea
                                 className="form-textarea"
-                                placeholder="أدخل وصف المهمة"
+                                placeholder="أدخل وصف المهمة (اختياري)"
                                 value={description}
                                 onChange={e => setDescription(e.target.value)}
                                 rows={2}
-                                required
                             />
                         </div>
 
@@ -276,7 +279,7 @@ export const AddTaskDialog: React.FC = () => {
                         <button
                             type="submit"
                             className="btn btn-primary"
-                            disabled={!(title.trim() && description.trim() && dueDate && dueTime && priority && assigneeId) || submitting}
+                            disabled={!(title.trim() && dueDate && dueTime && priority && assigneeId) || submitting}
                         >
                             {submitting ? 'جارٍ الإنشاء...' : 'إنشاء مهمة'}
                         </button>

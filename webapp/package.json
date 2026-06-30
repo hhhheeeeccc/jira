@@ -1,6 +1,6 @@
 {
   "name": "jira-project-management",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "Mattermost Jira Project Management Plugin - Kanban Board",
   "private": true,
   "scripts": {
