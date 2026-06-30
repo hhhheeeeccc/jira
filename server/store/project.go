@@ -229,6 +229,45 @@ func (s *Store) AddProjectMembers(projectID string, userIDs []string) error {
         return tx.Commit()
 }
 
+// IsProjectMember checks whether a user is a member of a project.
+func (s *Store) IsProjectMember(projectID, userID string) (bool, error) {
+        var count int
+        err := s.db.QueryRow(
+                `SELECT COUNT(*) FROM project_members WHERE project_id = ? AND user_id = ?`,
+                projectID, userID,
+        ).Scan(&count)
+        if err != nil {
+                return false, fmt.Errorf("check project membership: %w", err)
+        }
+        return count > 0, nil
+}
+
+// IsProjectAdmin checks whether a user is an admin member of a project.
+func (s *Store) IsProjectAdmin(projectID, userID string) (bool, error) {
+        var count int
+        err := s.db.QueryRow(
+                `SELECT COUNT(*) FROM project_members WHERE project_id = ? AND user_id = ? AND role = 'admin'`,
+                projectID, userID,
+        ).Scan(&count)
+        if err != nil {
+                return false, fmt.Errorf("check project admin: %w", err)
+        }
+        return count > 0, nil
+}
+
+// GetColumnProjectID returns the project_id for a given column.
+func (s *Store) GetColumnProjectID(columnID string) (string, error) {
+        var projectID string
+        err := s.db.QueryRow(`SELECT project_id FROM project_columns WHERE id = ?`, columnID).Scan(&projectID)
+        if err != nil {
+                if err == sql.ErrNoRows {
+                        return "", nil
+                }
+                return "", fmt.Errorf("get column project_id: %w", err)
+        }
+        return projectID, nil
+}
+
 // RemoveProjectMember removes a single user from a project.
 func (s *Store) RemoveProjectMember(projectID, userID string) error {
         res, err := s.db.Exec(
