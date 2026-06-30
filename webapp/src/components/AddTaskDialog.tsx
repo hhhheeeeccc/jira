@@ -69,7 +69,8 @@ export const AddTaskDialog: React.FC = () => {
         try {
             let status: TaskStatus = addTaskColumnId as TaskStatus;
             if (!status) {
-                status = projectColumns.length > 0 ? projectColumns[0].id : 'backlog';
+                // Default to first column (usually backlog)
+                status = projectColumns.length > 0 ? projectColumns[0].id : (selectedProject.id + '-backlog') as TaskStatus;
             }
 
             const taskData: any = {

@@ -3,6 +3,7 @@ package store
 import (
         "database/sql"
         "fmt"
+        "strings"
         "time"
 )
 
@@ -115,12 +116,12 @@ func (s *Store) CreateTask(projectID, title, description, dueDate, dueTime, prio
 
 // GetTaskProjectID returns the project_id for a given task
 func (s *Store) GetTaskProjectID(taskID string) (string, error) {
-	var projectID string
-	err := s.db.QueryRow(`SELECT project_id FROM tasks WHERE id = ?`, taskID).Scan(&projectID)
-	if err != nil {
-		return "", fmt.Errorf("get task project_id: %w", err)
-	}
-	return projectID, nil
+        var projectID string
+        err := s.db.QueryRow(`SELECT project_id FROM tasks WHERE id = ?`, taskID).Scan(&projectID)
+        if err != nil {
+                return "", fmt.Errorf("get task project_id: %w", err)
+        }
+        return projectID, nil
 }
 
 // GetTasksByProject returns every task for a project, ordered by sort_order.
@@ -155,9 +156,9 @@ func (s *Store) UpdateTask(id string, updates map[string]interface{}) error {
                 return nil
         }
 
-        // If status is being set to backlog, force-assignee to NULL.
+        // If status is being set to a backlog column, force-assignee to NULL.
         if statusVal, ok := updates["status"]; ok {
-                if s, ok := statusVal.(string); ok && s == "backlog" {
+                if s, ok := statusVal.(string); ok && strings.HasSuffix(s, "-backlog") {
                         updates["assignee_id"] = nil
                 }
         }

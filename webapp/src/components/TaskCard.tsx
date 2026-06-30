@@ -57,7 +57,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
         setDeleteTaskInfo(task);
     };
 
-    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
+    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !task.status.endsWith('-completed') && !task.status.endsWith('-done');
 
     const formatDueDate = (dateStr: string) => {
         const date = new Date(dateStr);

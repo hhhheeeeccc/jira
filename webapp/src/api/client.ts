@@ -104,4 +104,7 @@ export const api = {
     // User
     getMe: (): Promise<{ id: string; is_admin: boolean }> =>
         fetch(`${BASE_URL}/me`, getOptions()).then(r => handleResponse(r)),
+
+    getUsers: (): Promise<any[]> =>
+        fetch(`${BASE_URL}/users`, getOptions()).then(r => handleResponse(r)),
 };

@@ -25,10 +25,7 @@ export const AddMembersDialog: React.FC = () => {
         const loadUsers = async () => {
             setLoadingUsers(true);
             try {
-                const users = await fetch('/plugins/com.workspace.plugin.jira/api/v1/users').then(r => {
-                    if (!r.ok) throw new Error('فشل تحميل المستخدمين');
-                    return r.json();
-                });
+                const users = await api.getUsers();
                 setMattermostUsers(Array.isArray(users) ? users : []);
             } catch (err: any) {
                 console.error('Failed to load users:', err);
