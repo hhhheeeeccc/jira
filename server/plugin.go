@@ -875,10 +875,19 @@ func (p *Plugin) handleUpdateColumn(w http.ResponseWriter, r *http.Request, colI
 }
 
 func (p *Plugin) handleDeleteColumn(w http.ResponseWriter, r *http.Request, colID string) {
+        userID := r.Header.Get("Mattermost-User-Id")
+
         // Get column's project_id from database instead of trusting query params
         column, err := p.store.GetColumnByID(colID)
         if err != nil {
                 writeError(w, http.StatusNotFound, "column not found")
+                return
+        }
+
+        // Verify the caller is a project admin
+        isAdmin, err := p.isProjectAdmin(column.ProjectID, userID)
+        if err != nil || !isAdmin {
+                writeError(w, http.StatusForbidden, "only project admins can delete columns")
                 return
         }
 
