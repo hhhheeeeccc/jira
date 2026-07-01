@@ -521,6 +521,18 @@ func (p *Plugin) handleListTasks(w http.ResponseWriter, r *http.Request, project
 }
 
 func (p *Plugin) handleCreateTask(w http.ResponseWriter, r *http.Request, projectID string, userID string) {
+        // Membership check
+        found, err := p.isProjectMember(projectID, userID)
+        if err != nil {
+                p.API.LogError("Failed to check membership", "error", err.Error())
+                writeError(w, http.StatusInternalServerError, "failed to check project membership")
+                return
+        }
+        if !found {
+                writeError(w, http.StatusForbidden, "you are not a member of this project")
+                return
+        }
+
         var body struct {
                 Title       string `json:"title"`
                 Description string `json:"description"`

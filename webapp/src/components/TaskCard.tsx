@@ -55,7 +55,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
         setDeleteTaskInfo(task);
     };
 
-    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
+    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !task.status.endsWith('-completed');
 
     const canDelete = React.useMemo(() => {
         if (!currentUser) return false;

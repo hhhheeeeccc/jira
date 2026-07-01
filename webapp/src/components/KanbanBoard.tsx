@@ -108,7 +108,7 @@ export const KanbanBoard: React.FC = () => {
             updates.status = targetColumnId as TaskStatus;
 
             // When dragging to backlog, clear assignee
-            if (targetColumnId === 'backlog') {
+            if (targetColumnId.endsWith('-backlog')) {
                 updates.assignee_id = null;
             }
         }
