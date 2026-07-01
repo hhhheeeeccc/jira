@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import type { FC } from 'react';
+import { useEffect } from 'react';
 import {registerPlugin} from './register';
 
 const BotInputHider = () => {
@@ -10,12 +11,12 @@ const BotInputHider = () => {
             document.head.appendChild(styleEl);
         }
 
-        const interval = setInterval(() => {
-            // Check if we are in the Bot channel by looking at the header title
-            // Mattermost puts the channel name in the header
+        const updateStyle = () => {
+            if (!styleEl) return;
+
             const headerTitles = document.querySelectorAll('#channelHeaderTitle, .channel-header__title');
             let isBotChannel = false;
-            
+
             headerTitles.forEach((el) => {
                 if (el.textContent && (el.textContent.includes('بوت إدارة المشاريع') || el.textContent.includes('jira.project.bot'))) {
                     isBotChannel = true;
@@ -23,7 +24,7 @@ const BotInputHider = () => {
             });
 
             if (isBotChannel) {
-                styleEl!.textContent = `
+                styleEl.textContent = `
                     #create_post {
                         position: relative !important;
                     }
@@ -49,34 +50,49 @@ const BotInputHider = () => {
                     }
                 `;
             } else {
-                styleEl!.textContent = '';
+                styleEl.textContent = '';
             }
-        }, 500);
+        };
+
+        // Run once immediately
+        updateStyle();
+
+        // Use MutationObserver to watch for channel header title changes
+        const observer = new MutationObserver(() => {
+            updateStyle();
+        });
+
+        const headerContainer = document.querySelector('#channelHeaderTitle, .channel-header__title');
+        if (headerContainer) {
+            observer.observe(headerContainer, { childList: true, subtree: true, characterData: true });
+        } else {
+            // If header not yet in DOM, observe the body for subtree changes
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
 
         return () => {
-            clearInterval(interval);
+            observer.disconnect();
             const el = document.getElementById('jira-bot-hide-input');
             if (el) el.remove();
         };
     }, []);
-    
+
     return null;
 };
 
-declare global {
-    interface Window {
-        registerPlugin: any;
-    }
+interface MattermostRegistry {
+    registerRootComponent: (c: FC) => void;
+    registerWebSocketEventHandler: (event: string, handler: (msg: { data?: Record<string, unknown> }) => void) => void;
 }
 
 class Plugin {
-    initialize(registry: any, store: any) {
+    initialize(registry: MattermostRegistry, _store: unknown) {
         registerPlugin(registry);
         registry.registerRootComponent(BotInputHider);
 
         registry.registerWebSocketEventHandler(
             'custom_com.workspace.plugin.jira_project_updated',
-            (msg: any) => {
+            (msg) => {
                 const data = msg.data || {};
                 window.dispatchEvent(new CustomEvent('jira_project_updated', { detail: data }));
             }
@@ -85,4 +101,9 @@ class Plugin {
 }
 
 // Mattermost plugin registration
+declare global {
+    interface Window {
+        registerPlugin: (pluginId: string, plugin: { initialize: (registry: MattermostRegistry, store: unknown) => void }) => void;
+    }
+}
 window.registerPlugin('com.workspace.plugin.jira', new Plugin());

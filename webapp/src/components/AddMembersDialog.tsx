@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, UserMinus, UserPlus, Search } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
+import useDialogEscape from '../hooks/useDialogEscape';
 
 export const AddMembersDialog: React.FC = () => {
     const {
         selectedProject,
         projectMembers,
         mattermostUsers,
+        showAddMembersDialog,
         setShowAddMembersDialog,
         setProjectMembers,
         setMattermostUsers,
@@ -17,30 +19,40 @@ export const AddMembersDialog: React.FC = () => {
     } = useStore();
 
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
-    const [removingUserId, setRemovingUserId] = useState<string | null>(null);
     const [adding, setAdding] = useState(false);
-    const [loadingUsers, setLoadingUsers] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const dialogRef = useRef<HTMLDivElement>(null);
+
+    const handleClose = () => {
+        setShowAddMembersDialog(false);
+        setSelectedUserIds([]);
+        setSearchQuery('');
+    };
+
+    useDialogEscape(handleClose, !!showAddMembersDialog && !!selectedProject);
+
+    // Auto-focus first input on open
+    useEffect(() => {
+        if (showAddMembersDialog && selectedProject && dialogRef.current) {
+            const firstInput = dialogRef.current.querySelector('input, textarea, button:not([aria-label*=إغلاق])') as HTMLElement | null;
+            if (firstInput) firstInput.focus();
+        }
+    }, [showAddMembersDialog, selectedProject]);
 
     useEffect(() => {
         const loadUsers = async () => {
-            setLoadingUsers(true);
             try {
-                const users = await fetch('/plugins/com.workspace.plugin.jira/api/v1/users').then(r => {
-                    if (!r.ok) throw new Error('فشل تحميل المستخدمين');
-                    return r.json();
-                });
+                const users = await api.getUsers();
                 setMattermostUsers(Array.isArray(users) ? users : []);
-            } catch (err: any) {
-                console.error('Failed to load users:', err);
-            } finally {
-                setLoadingUsers(false);
+            } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : 'فشل تحميل المستخدمين';
+                console.error('Failed to load users:', message);
             }
         };
         loadUsers();
     }, [setMattermostUsers]);
 
-    if (!selectedProject) return null;
+    if (!selectedProject || !showAddMembersDialog) return null;
 
     const isProjectAdmin = React.useMemo(() => {
         if (!currentUser || !selectedProject) return false;
@@ -51,20 +63,14 @@ export const AddMembersDialog: React.FC = () => {
     const currentMemberUserIds = new Set(projectMembers.map(m => m.user_id));
     const availableUsers = mattermostUsers.filter(u => !currentMemberUserIds.has(u.id));
 
-    const filteredAvailableUsers = useMemo(() => {
+    const filteredAvailableUsers = React.useMemo(() => {
         if (!searchQuery.trim()) return availableUsers;
         const q = searchQuery.toLowerCase();
-        return availableUsers.filter(u => 
-            (u.username && u.username.toLowerCase().includes(q)) || 
+        return availableUsers.filter(u =>
+            (u.username && u.username.toLowerCase().includes(q)) ||
             (u.display_name && u.display_name.toLowerCase().includes(q))
         );
     }, [availableUsers, searchQuery]);
-
-    const handleClose = () => {
-        setShowAddMembersDialog(false);
-        setSelectedUserIds([]);
-        setSearchQuery('');
-    };
 
     const handleRemoveMember = async (userId: string) => {
         const member = projectMembers.find(m => m.user_id === userId);
@@ -82,8 +88,9 @@ export const AddMembersDialog: React.FC = () => {
             setProjectMembers(Array.isArray(updatedMembers) ? updatedMembers : []);
             setSelectedUserIds([]);
             setSearchQuery('');
-        } catch (err: any) {
-            setError(err.message || 'فشل إضافة الأعضاء');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'فشل إضافة الأعضاء';
+            setError(message);
         } finally {
             setAdding(false);
         }
@@ -102,11 +109,11 @@ export const AddMembersDialog: React.FC = () => {
     };
 
     return (
-        <div className="modal-overlay" onClick={handleClose}>
-            <div className="modal-dialog1 members-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={handleClose} role="dialog" aria-modal="true" aria-labelledby="dialog-title-AddMembersDialog">
+            <div className="modal-dialog1 members-modal" onClick={e => e.stopPropagation()} ref={dialogRef}>
                 <div className="modal-dialog1__header">
-                    <h2 className="modal-dialog1__title">إدارة أعضاء المشروع</h2>
-                    <button className="modal-dialog1__close" onClick={handleClose}>
+                    <h2 id="dialog-title-AddMembersDialog" className="modal-dialog1__title">إدارة أعضاء المشروع</h2>
+                    <button className="modal-dialog1__close" onClick={handleClose} aria-label="إغلاق">
                         <X size={18} />
                     </button>
                 </div>
@@ -139,8 +146,8 @@ export const AddMembersDialog: React.FC = () => {
                                             <button
                                                 className="member-item__remove"
                                                 onClick={() => handleRemoveMember(member.user_id)}
-                                                disabled={removingUserId === member.user_id}
                                                 title="إزالة العضو"
+                                                aria-label={`إزالة ${getDisplayName(member)}`}
                                             >
                                                 <UserMinus size={16} />
                                             </button>
@@ -155,16 +162,15 @@ export const AddMembersDialog: React.FC = () => {
                     {isProjectAdmin && availableUsers.length > 0 && (
                         <div className="members-section">
                             <div className="members-section__title">إضافة أعضاء جدد</div>
-                            
+
                             <div className="search-box">
                                 <Search className="search-box__icon" size={16} />
-                                <input 
-                                    type="text" 
-                                    className="search-box__input" 
-                                    placeholder="ابحث عن اسم المستخدم أو الاسم الكامل..." 
+                                <input
+                                    type="text"
+                                    className="search-box__input"
+                                    placeholder="ابحث عن اسم المستخدم أو الاسم الكامل..."
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
-                                    autoFocus
                                 />
                             </div>
 

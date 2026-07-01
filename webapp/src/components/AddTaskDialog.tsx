@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, CalendarDays, Clock, Flag, User } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
 import type { TaskStatus } from '../types';
+import useDialogEscape from '../hooks/useDialogEscape';
 
 const PRIORITY_OPTIONS = [
     { value: 'low', label: 'منخفض' },
@@ -20,9 +21,10 @@ export const AddTaskDialog: React.FC = () => {
     const [assigneeId, setAssigneeId] = useState<string>('');
     const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
-    
-    const dateInputRef = React.useRef<HTMLInputElement>(null);
-    const timeInputRef = React.useRef<HTMLInputElement>(null);
+
+    const dateInputRef = useRef<HTMLInputElement>(null);
+    const timeInputRef = useRef<HTMLInputElement>(null);
+    const dialogRef = useRef<HTMLDivElement>(null);
 
     const {
         selectedProject,
@@ -35,6 +37,20 @@ export const AddTaskDialog: React.FC = () => {
         setError,
     } = useStore();
 
+    const handleClose = () => {
+        setShowAddTaskDialog(false);
+    };
+
+    useDialogEscape(handleClose, !!showAddTaskDialog);
+
+    // Auto-focus first input on open
+    useEffect(() => {
+        if (showAddTaskDialog && dialogRef.current) {
+            const firstInput = dialogRef.current.querySelector('input, textarea, button:not([aria-label*=إغلاق])') as HTMLElement | null;
+            if (firstInput) firstInput.focus();
+        }
+    }, [showAddTaskDialog]);
+
     // Reset state when dialog opens
     useEffect(() => {
         if (showAddTaskDialog) {
@@ -45,22 +61,18 @@ export const AddTaskDialog: React.FC = () => {
             setPriority('medium');
             setAssigneeId('');
             setError(null);
-            
+
             // Set initial due date to today
             const today = new Date();
             setDueDate(today.toISOString().split('T')[0]);
         }
-    }, [showAddTaskDialog]);
+    }, [showAddTaskDialog, setError]);
 
     if (!showAddTaskDialog || !selectedProject) return null;
 
-    const handleClose = () => {
-        setShowAddTaskDialog(false);
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         const isFormValid = title.trim() && description.trim() && dueDate && dueTime && priority && assigneeId;
         if (!selectedProject || !isFormValid) return;
 
@@ -69,10 +81,10 @@ export const AddTaskDialog: React.FC = () => {
         try {
             let status: TaskStatus = addTaskColumnId as TaskStatus;
             if (!status) {
-                status = projectColumns.length > 0 ? projectColumns[0].id : 'backlog';
+                status = (projectColumns.length > 0 ? projectColumns[0].id : 'backlog') as TaskStatus;
             }
 
-            const taskData: any = {
+            const taskData: Record<string, unknown> = {
                 title: title.trim(),
                 description: description.trim() || null,
                 priority,
@@ -86,19 +98,20 @@ export const AddTaskDialog: React.FC = () => {
             const tasks = await api.getProjectTasks(selectedProject.id);
             setProjectTasks(Array.isArray(tasks) ? tasks : []);
             handleClose();
-        } catch (err: any) {
-            setError(err.message || 'فشل إنشاء المهمة');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'فشل إنشاء المهمة';
+            setError(message);
         } finally {
             setSubmitting(false);
         }
     };
 
     return (
-        <div className="modal-overlay" onClick={handleClose}>
-            <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={handleClose} role="dialog" aria-modal="true" aria-labelledby="dialog-title-AddTaskDialog">
+            <div className="modal-dialog1" onClick={e => e.stopPropagation()} ref={dialogRef}>
                 <div className="modal-dialog1__header">
-                    <h2 className="modal-dialog1__title">إضافة مهمة جديدة</h2>
-                    <button className="modal-dialog1__close" onClick={handleClose}>
+                    <h2 id="dialog-title-AddTaskDialog" className="modal-dialog1__title">إضافة مهمة جديدة</h2>
+                    <button className="modal-dialog1__close" onClick={handleClose} aria-label="إغلاق">
                         <X size={18} />
                     </button>
                 </div>
@@ -107,22 +120,23 @@ export const AddTaskDialog: React.FC = () => {
                     <div className="modal-dialog1__body">
                         {/* Title */}
                         <div className="form-group">
-                            <label className="form-label">عنوان المهمة *</label>
+                            <label className="form-label" htmlFor="add-task-title">عنوان المهمة *</label>
                             <input
+                                id="add-task-title"
                                 type="text"
                                 className="form-input"
                                 placeholder="أدخل عنوان المهمة"
                                 value={title}
                                 onChange={e => setTitle(e.target.value)}
-                                autoFocus
                                 required
                             />
                         </div>
 
                         {/* Description */}
                         <div className="form-group">
-                            <label className="form-label">الوصف *</label>
+                            <label className="form-label" htmlFor="add-task-desc">الوصف *</label>
                             <textarea
+                                id="add-task-desc"
                                 className="form-textarea"
                                 placeholder="أدخل وصف المهمة"
                                 value={description}
@@ -135,14 +149,15 @@ export const AddTaskDialog: React.FC = () => {
                         {/* Priority & Assignee Row */}
                         <div className="form-row">
                             <div className="form-group">
-                                <label className="form-label">
+                                <label className="form-label" htmlFor="add-task-priority">
                                     <Flag size={13} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 4 }} />
                                     الأولوية
                                 </label>
                                 <select
+                                    id="add-task-priority"
                                     className="form-select"
                                     value={priority}
-                                    onChange={e => setPriority(e.target.value as any)}
+                                    onChange={e => setPriority(e.target.value as 'low' | 'medium' | 'high' | 'critical')}
                                 >
                                     {PRIORITY_OPTIONS.map(opt => (
                                         <option key={opt.value} value={opt.value}>
@@ -152,21 +167,26 @@ export const AddTaskDialog: React.FC = () => {
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">
+                                <label className="form-label" htmlFor="add-task-assignee">
                                     <User size={13} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 4 }} />
                                     المسؤول
                                 </label>
                                 <div className="custom-select-container">
-                                    <div 
-                                        className="custom-select" 
+                                    <div
+                                        className="custom-select"
+                                        role="combobox"
+                                        tabIndex={0}
+                                        aria-expanded={isAssigneeDropdownOpen}
+                                        aria-label="اختر المسؤول"
+                                        id="add-task-assignee"
                                         onClick={() => setIsAssigneeDropdownOpen(!isAssigneeDropdownOpen)}
                                     >
                                         {assigneeId && projectMembers.find(m => m.user_id === assigneeId) ? (
                                             <div className="custom-select-user">
-                                                <img 
-                                                    src={`/api/v4/users/${assigneeId}/image`} 
-                                                    className="custom-select-avatar" 
-                                                    alt="avatar"
+                                                <img
+                                                    src={`/api/v4/users/${assigneeId}/image`}
+                                                    className="custom-select-avatar"
+                                                    alt={projectMembers.find(m => m.user_id === assigneeId)?.display_name || projectMembers.find(m => m.user_id === assigneeId)?.username || 'avatar'}
                                                 />
                                                 <span className="custom-select-name" style={{ marginRight: '8px' }}>
                                                     {projectMembers.find(m => m.user_id === assigneeId)?.display_name || projectMembers.find(m => m.user_id === assigneeId)?.username}
@@ -176,27 +196,28 @@ export const AddTaskDialog: React.FC = () => {
                                             <span className="custom-select-placeholder">اختر المسؤول...</span>
                                         )}
                                     </div>
-                                    
+
                                     {isAssigneeDropdownOpen && (
                                         <>
-                                            <div 
-                                                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} 
-                                                onClick={(e) => { e.stopPropagation(); setIsAssigneeDropdownOpen(false); }} 
+                                            <div
+                                                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }}
+                                                onClick={(e) => { e.stopPropagation(); setIsAssigneeDropdownOpen(false); }}
                                             />
-                                            <div className="custom-select-menu">
+                                            <div className="custom-select-menu" role="listbox">
                                                 {projectMembers.map(member => (
-                                                    <div 
-                                                        key={member.user_id} 
+                                                    <div
+                                                        key={member.user_id}
                                                         className="custom-select-option"
+                                                        role="option"
                                                         onClick={() => {
                                                             setAssigneeId(member.user_id);
                                                             setIsAssigneeDropdownOpen(false);
                                                         }}
                                                     >
-                                                        <img 
-                                                            src={`/api/v4/users/${member.user_id}/image`} 
-                                                            className="custom-select-avatar" 
-                                                            alt={member.username}
+                                                        <img
+                                                            src={`/api/v4/users/${member.user_id}/image`}
+                                                            className="custom-select-avatar"
+                                                            alt={member.display_name || member.username}
                                                         />
                                                         <div className="custom-select-info" style={{ marginRight: '12px' }}>
                                                             <div className="custom-select-name">{member.display_name || member.username}</div>

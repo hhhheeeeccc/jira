@@ -21,11 +21,14 @@ func (s *Store) CreateColumn(col *Column) error {
 	if col.ID == "" {
 		col.ID = newID()
 	}
-	
+
 	// Default to last order if not specified
 	if col.SortOrder == 0 {
 		var maxOrder sql.NullInt64
 		err := s.db.QueryRow("SELECT MAX(sort_order) FROM project_columns WHERE project_id = ?", col.ProjectID).Scan(&maxOrder)
+		if err != nil && err != sql.ErrNoRows {
+			return fmt.Errorf("failed to query max sort order: %w", err)
+		}
 		if err == nil && maxOrder.Valid {
 			col.SortOrder = int(maxOrder.Int64) + 1
 		}
@@ -74,6 +77,10 @@ func (s *Store) GetProjectColumns(projectID string) ([]*Column, error) {
 		columns = append(columns, &col)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed iterating column rows: %w", err)
+	}
+
 	return columns, nil
 }
 
@@ -97,12 +104,41 @@ func (s *Store) UpdateColumn(id string, title, color string, sortOrder *int) err
 	return nil
 }
 
-// DeleteColumn deletes a column. Note: UI should handle warning about orphaned tasks or we should move them.
+// GetColumnByID retrieves a single column by its ID.
+func (s *Store) GetColumnByID(id string) (*Column, error) {
+	var c Column
+	err := s.db.QueryRow(
+		"SELECT id, project_id, title, color, sort_order, created_at, updated_at FROM project_columns WHERE id = ?", id,
+	).Scan(&c.ID, &c.ProjectID, &c.Title, &c.Color, &c.SortOrder, &c.CreatedAt, &c.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+// DeleteColumn deletes a column. Returns an error if any tasks reference this column's status.
 func (s *Store) DeleteColumn(id string) error {
+	// Check if any tasks reference this column status
+	var count int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM tasks WHERE status = ?", id).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to check tasks for column: %w", err)
+	}
+	if count > 0 {
+		return fmt.Errorf("cannot delete column: %d tasks still reference this column", count)
+	}
+
 	query := `DELETE FROM project_columns WHERE id = ?`
-	_, err := s.db.Exec(query, id)
+	res, err := s.db.Exec(query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete column: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if n == 0 {
+		return sql.ErrNoRows
 	}
 	return nil
 }

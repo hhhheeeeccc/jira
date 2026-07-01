@@ -1,14 +1,6 @@
 import React from 'react';
 import {PluginRoot} from './components/PluginRoot';
-
-const KanbanIcon = ({ color, size = 16 }: { color?: string, size?: number | string }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="17" height="17" rx="2" ry="2"/>
-        <path d="M8 7v7"/>
-        <path d="M12 7v4"/>
-        <path d="M16 7v9"/>
-    </svg>
-);
+import KanbanIcon from './components/KanbanIcon';
 
 const ProductSwitcherIcon = () => <KanbanIcon color="var(--button-bg)" size={17} />;
 
@@ -36,7 +28,7 @@ const GlobalHeaderCenter = () => {
             [class*="team-sidebar"] {
                 background: var(--sidebar-header-bg) !important;
             }
-            
+
             /* Fix white borders/gaps around the plugin */
             #app-content,
             .app__content,
@@ -66,9 +58,9 @@ const GlobalHeaderCenter = () => {
 
 const navigateToJira = () => {
     // Use Mattermost's SPA router to avoid full page refresh
-    const browserHistory = (window as any).WebappUtils?.browserHistory;
+    const browserHistory = (window as unknown as Record<string, unknown>).WebappUtils as { browserHistory: { push: (path: string) => void } } | undefined;
     if (browserHistory) {
-        browserHistory.push('/jira');
+        browserHistory.browserHistory.push('/jira');
     } else {
         // Fallback
         const teamName = window.location.pathname.split('/')[1] || '';
@@ -76,11 +68,12 @@ const navigateToJira = () => {
     }
 };
 
-export const registerPlugin = (registry: any) => {
+export const registerPlugin = (registry: unknown) => {
     // Register as a native Mattermost Product (like Playbooks/Boards)
     // Parameters: baseURL, productIcon, productName, defaultLandingPage, mainComponent, headerCenterComponent, headerRightComponent, enableTeamSidebar
-    if (registry.registerProduct) {
-        registry.registerProduct(
+    const reg = registry as Record<string, unknown>;
+    if (typeof reg.registerProduct === 'function') {
+        (reg.registerProduct as (...args: unknown[]) => void)(
             '/jira',
             ProductSwitcherIcon,
             'إدارة مشاريع جيرا',
@@ -90,14 +83,16 @@ export const registerPlugin = (registry: any) => {
             null,
             true
         );
-    } else {
-        registry.registerCustomRoute('/jira', PluginRoot);
+    } else if (typeof reg.registerCustomRoute === 'function') {
+        (reg.registerCustomRoute as (path: string, component: React.FC) => void)('/jira', PluginRoot);
     }
 
-    registry.registerChannelHeaderButtonAction(
-        <KanbanIcon />,
-        navigateToJira,
-        "إدارة مشاريع جيرا",
-        "إدارة مشاريع جيرا"
-    );
+    if (typeof reg.registerChannelHeaderButtonAction === 'function') {
+        (reg.registerChannelHeaderButtonAction as (icon: React.ReactNode, action: () => void, tooltipText: string, ariaLabel: string) => void)(
+            <KanbanIcon />,
+            navigateToJira,
+            "إدارة مشاريع جيرا",
+            "إدارة مشاريع جيرا"
+        );
+    }
 };

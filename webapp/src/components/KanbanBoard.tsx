@@ -10,7 +10,6 @@ import {
     DragEndEvent,
     DragOverEvent,
 } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
@@ -25,7 +24,6 @@ export const KanbanBoard: React.FC = () => {
         projectMembers,
         projectColumns,
         setProjectTasks,
-        setProjectColumns,
         setShowAddColumnDialog,
         setError,
         currentUser,
@@ -52,10 +50,6 @@ export const KanbanBoard: React.FC = () => {
         return projectTasks
             .filter(t => t.status === columnId)
             .sort((a, b) => a.sort_order - b.sort_order);
-    };
-
-    const getColumnTaskIds = (columnId: string): string[] => {
-        return getColumnTasks(columnId).map(t => t.id);
     };
 
     const handleAddColumn = () => {
@@ -108,7 +102,7 @@ export const KanbanBoard: React.FC = () => {
         if (task.status === targetColumnId && over.id === active.id) return;
 
         // Prepare update data
-        const updates: any = {};
+        const updates: Record<string, unknown> = {};
 
         if (task.status !== targetColumnId) {
             updates.status = targetColumnId as TaskStatus;
@@ -132,8 +126,9 @@ export const KanbanBoard: React.FC = () => {
             // Refresh tasks
             const updatedTasks = await api.getProjectTasks(task.project_id);
             setProjectTasks(Array.isArray(updatedTasks) ? updatedTasks : []);
-        } catch (err: any) {
-            setError(err.message || 'فشل تحديث المهمة');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'فشل تحديث المهمة';
+            setError(message);
             // Refresh to restore state
             const currentTasks = await api.getProjectTasks(task.project_id);
             setProjectTasks(Array.isArray(currentTasks) ? currentTasks : []);
@@ -152,9 +147,7 @@ export const KanbanBoard: React.FC = () => {
                 {projectColumns.map(column => (
                     <KanbanColumn
                         key={column.id}
-                        id={column.id}
-                        title={column.title}
-                        color={column.color}
+                        column={column}
                         tasks={getColumnTasks(column.id)}
                         isDragOver={activeOverColumnId === column.id}
                     />
@@ -162,7 +155,7 @@ export const KanbanBoard: React.FC = () => {
 
                 {isProjectAdmin && (
                     <div className="add-column-container" style={{ minWidth: 280, padding: '0 8px' }}>
-                        <button 
+                        <button
                             onClick={handleAddColumn}
                             style={{
                                 width: '100%',
@@ -192,10 +185,10 @@ export const KanbanBoard: React.FC = () => {
                     easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
                 }}>
                     {activeTask ? (
-                        <TaskCard 
-                            task={activeTask} 
-                            projectMembers={projectMembers} 
-                            isOverlay 
+                        <TaskCard
+                            task={activeTask}
+                            projectMembers={projectMembers}
+                            isOverlay
                             columnColor={projectColumns.find(c => c.id === (activeOverColumnId || activeTask.status))?.color}
                         />
                     ) : null}

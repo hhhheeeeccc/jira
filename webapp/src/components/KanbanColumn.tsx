@@ -3,29 +3,24 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { api } from '../api/client';
-import type { Task, ProjectMember } from '../types';
+import type { Task, KanbanColumn as KanbanColumnType } from '../types';
 import { TaskCard } from './TaskCard';
 
 interface KanbanColumnProps {
-    id: string;
-    title: string;
-    color: string;
+    column: KanbanColumnType;
     tasks: Task[];
     isDragOver: boolean;
 }
 
 export const KanbanColumn: React.FC<KanbanColumnProps> = ({
-    id,
-    title,
-    color,
+    column,
     tasks,
     isDragOver,
 }) => {
-    const { setEditColumn, setDeleteColumnInfo, setShowAddTaskDialog, projectMembers, setAlertMessage } = useStore();
+    const { setEditColumn, setDeleteColumnInfo, setShowAddTaskDialog, setAlertMessage, projectMembers } = useStore();
 
     const { setNodeRef, isOver } = useDroppable({
-        id,
+        id: column.id,
         data: {
             type: 'column',
         },
@@ -34,11 +29,11 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
     const taskIds = tasks.map(t => t.id);
 
     const handleAddTask = () => {
-        setShowAddTaskDialog(true, id);
+        setShowAddTaskDialog(true, column.id);
     };
 
     const handleEditColumn = () => {
-        setEditColumn({ id, title, color } as any);
+        setEditColumn(column);
     };
 
     const handleDeleteColumn = () => {
@@ -46,28 +41,28 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
             setAlertMessage('لا يمكن حذف عمود يحتوي على مهام. يرجى نقل المهام أولاً.');
             return;
         }
-        setDeleteColumnInfo({ id, title, color } as any);
+        setDeleteColumnInfo(column);
     };
 
     const showDragHighlight = isDragOver || isOver;
 
-    const isDefaultColumn = ['-backlog', '-todo', '-in_progress', '-completed'].some(suffix => id.endsWith(suffix));
+    const isDefaultColumn = ['-backlog', '-todo', '-in_progress', '-completed'].some(suffix => column.id.endsWith(suffix));
 
     return (
         <div className={`kanban-column ${showDragHighlight ? 'kanban-column--drag-over' : ''}`}>
-            <div className="kanban-column__color-bar" style={{ background: color }} />
+            <div className="kanban-column__color-bar" style={{ background: column.color }} />
 
             <div className="kanban-column__header" style={{ position: 'relative' }}>
                 <div className="kanban-column__title-group">
-                    <span className="kanban-column__title">{title}</span>
+                    <span className="kanban-column__title">{column.title}</span>
                     <span className="kanban-column__count">{tasks.length}</span>
                 </div>
                 {!isDefaultColumn && (
                     <div className="kanban-column__actions" style={{ display: 'flex', gap: '4px' }}>
-                        <button onClick={handleEditColumn} title="تعديل العمود" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-text-muted)' }}>
+                        <button onClick={handleEditColumn} title="تعديل العمود" aria-label="تعديل العمود" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-text-muted)' }}>
                             <Edit2 size={14} />
                         </button>
-                        <button onClick={handleDeleteColumn} title="حذف العمود" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-error-text)' }}>
+                        <button onClick={handleDeleteColumn} title="حذف العمود" aria-label="حذف العمود" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-error-text)' }}>
                             <Trash2 size={14} />
                         </button>
                     </div>
@@ -86,7 +81,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
                                 key={task.id}
                                 task={task}
                                 projectMembers={projectMembers}
-                                columnColor={color}
+                                columnColor={column.color}
                             />
                         ))
                     )}

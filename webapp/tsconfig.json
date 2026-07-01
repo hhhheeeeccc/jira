@@ -15,8 +15,8 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "sourceMap": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src/**/*"],

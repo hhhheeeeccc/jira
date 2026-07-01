@@ -1,3 +1,5 @@
+import type { Project, Task, KanbanColumn, ProjectMember, MattermostUser } from '../types';
+
 const PLUGIN_ID = 'com.workspace.plugin.jira';
 const BASE_URL = `/plugins/${PLUGIN_ID}/api/v1`;
 
@@ -9,7 +11,7 @@ function getCSRFToken() {
 function getOptions(options: RequestInit = {}): RequestInit {
     const headers = new Headers(options.headers || {});
     headers.set('X-CSRF-Token', getCSRFToken());
-    
+
     return {
         ...options,
         headers,
@@ -27,81 +29,95 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 export const api = {
     // Projects
-    getProjects: (): Promise<any[]> =>
-        fetch(`${BASE_URL}/projects`, getOptions()).then(r => handleResponse(r)),
+    getProjects: (): Promise<Project[]> =>
+        fetch(`${BASE_URL}/projects`, getOptions()).then(r => handleResponse<Project[]>(r)),
 
-    getProject: (id: string): Promise<any> =>
-        fetch(`${BASE_URL}/projects/${id}`, getOptions()).then(r => handleResponse(r)),
+    getProject: (id: string): Promise<Project> =>
+        fetch(`${BASE_URL}/projects/${id}`, getOptions()).then(r => handleResponse<Project>(r)),
 
-    createProject: (data: { name: string; description?: string }): Promise<any> =>
+    createProject: (data: { name: string; description?: string }): Promise<Project> =>
         fetch(`${BASE_URL}/projects`, getOptions({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
-        })).then(r => handleResponse(r)),
+        })).then(r => handleResponse<Project>(r)),
 
-    deleteProject: (id: string): Promise<any> =>
-        fetch(`${BASE_URL}/projects/${id}`, getOptions({ method: 'DELETE' })).then(r => handleResponse(r)),
+    deleteProject: (id: string): Promise<void> =>
+        fetch(`${BASE_URL}/projects/${id}`, getOptions({ method: 'DELETE' })).then(r => {
+            if (!r.ok) throw new Error('فشل حذف المشروع');
+        }),
 
     // Project Members
-    getProjectMembers: (projectId: string): Promise<any[]> =>
-        fetch(`${BASE_URL}/projects/${projectId}/members`, getOptions()).then(r => handleResponse(r)),
+    getProjectMembers: (projectId: string): Promise<ProjectMember[]> =>
+        fetch(`${BASE_URL}/projects/${projectId}/members`, getOptions()).then(r => handleResponse<ProjectMember[]>(r)),
 
-    addProjectMembers: (projectId: string, userIds: string[]): Promise<any> =>
+    addProjectMembers: (projectId: string, userIds: string[]): Promise<void> =>
         fetch(`${BASE_URL}/projects/${projectId}/members`, getOptions({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ member_ids: userIds }),
-        })).then(r => handleResponse(r)),
+        })).then(r => {
+            if (!r.ok) throw new Error('فشل إضافة الأعضاء');
+        }),
 
-    removeProjectMember: (projectId: string, userId: string): Promise<any> =>
+    removeProjectMember: (projectId: string, userId: string): Promise<void> =>
         fetch(`${BASE_URL}/projects/${projectId}/members/${userId}`, getOptions({
             method: 'DELETE',
-        })).then(r => handleResponse(r)),
+        })).then(r => {
+            if (!r.ok) throw new Error('فشل إزالة العضو');
+        }),
 
     // Tasks
-    getProjectTasks: (projectId: string): Promise<any[]> =>
-        fetch(`${BASE_URL}/projects/${projectId}/tasks`, getOptions()).then(r => handleResponse(r)),
+    getProjectTasks: (projectId: string): Promise<Task[]> =>
+        fetch(`${BASE_URL}/projects/${projectId}/tasks`, getOptions()).then(r => handleResponse<Task[]>(r)),
 
-    createTask: (projectId: string, data: any): Promise<any> =>
+    createTask: (projectId: string, data: Record<string, unknown>): Promise<Task> =>
         fetch(`${BASE_URL}/projects/${projectId}/tasks`, getOptions({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
-        })).then(r => handleResponse(r)),
+        })).then(r => handleResponse<Task>(r)),
 
-    updateTask: (taskId: string, data: any): Promise<any> =>
+    updateTask: (taskId: string, data: Record<string, unknown>): Promise<Task> =>
         fetch(`${BASE_URL}/tasks/${taskId}`, getOptions({
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
-        })).then(r => handleResponse(r)),
+        })).then(r => handleResponse<Task>(r)),
 
-    deleteTask: (taskId: string): Promise<any> =>
-        fetch(`${BASE_URL}/tasks/${taskId}`, getOptions({ method: 'DELETE' })).then(r => handleResponse(r)),
+    deleteTask: (taskId: string): Promise<void> =>
+        fetch(`${BASE_URL}/tasks/${taskId}`, getOptions({ method: 'DELETE' })).then(r => {
+            if (!r.ok) throw new Error('فشل حذف المهمة');
+        }),
 
     // Columns
-    getProjectColumns: (projectId: string): Promise<any[]> =>
-        fetch(`${BASE_URL}/projects/${projectId}/columns`, getOptions()).then(r => handleResponse(r)),
+    getProjectColumns: (projectId: string): Promise<KanbanColumn[]> =>
+        fetch(`${BASE_URL}/projects/${projectId}/columns`, getOptions()).then(r => handleResponse<KanbanColumn[]>(r)),
 
-    createColumn: (projectId: string, data: { title: string; color?: string; sort_order?: number }): Promise<any> =>
+    createColumn: (projectId: string, data: { title: string; color?: string; sort_order?: number }): Promise<KanbanColumn> =>
         fetch(`${BASE_URL}/projects/${projectId}/columns`, getOptions({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
-        })).then(r => handleResponse(r)),
+        })).then(r => handleResponse<KanbanColumn>(r)),
 
-    updateColumn: (columnId: string, data: { title: string; color?: string; sort_order?: number; project_id?: string }): Promise<any> =>
+    updateColumn: (columnId: string, data: { title: string; color?: string; sort_order?: number; project_id?: string }): Promise<KanbanColumn> =>
         fetch(`${BASE_URL}/columns/${columnId}`, getOptions({
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
-        })).then(r => handleResponse(r)),
+        })).then(r => handleResponse<KanbanColumn>(r)),
 
-    deleteColumn: (columnId: string, projectId?: string): Promise<any> =>
-        fetch(`${BASE_URL}/columns/${columnId}${projectId ? `?project_id=${projectId}` : ''}`, getOptions({ method: 'DELETE' })).then(r => handleResponse(r)),
+    deleteColumn: (columnId: string, projectId?: string): Promise<void> =>
+        fetch(`${BASE_URL}/columns/${columnId}${projectId ? `?project_id=${projectId}` : ''}`, getOptions({ method: 'DELETE' })).then(r => {
+            if (!r.ok) throw new Error('فشل حذف العمود');
+        }),
+
+    // Users
+    getUsers: (): Promise<MattermostUser[]> =>
+        fetch(`${BASE_URL}/users`, getOptions()).then(r => handleResponse<MattermostUser[]>(r)),
 
     // User
     getMe: (): Promise<{ id: string; is_admin: boolean }> =>
-        fetch(`${BASE_URL}/me`, getOptions()).then(r => handleResponse(r)),
+        fetch(`${BASE_URL}/me`, getOptions()).then(r => handleResponse<{ id: string; is_admin: boolean }>(r)),
 };

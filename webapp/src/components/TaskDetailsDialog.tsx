@@ -1,7 +1,10 @@
-import { useStore } from '../store/useStore';
+import { useEffect, useRef } from 'react';
 import { X, CalendarDays, Clock, User, AlertCircle, FileText } from 'lucide-react';
 import { marked } from 'marked';
-import type { Task, KanbanColumn, ProjectMember } from '../types';
+import DOMPurify from 'dompurify';
+import type { KanbanColumn } from '../types';
+import { useStore } from '../store/useStore';
+import useDialogEscape from '../hooks/useDialogEscape';
 
 const PRIORITY_LABELS: Record<string, string> = {
     low: 'منخفض',
@@ -17,15 +20,32 @@ const PRIORITY_COLORS: Record<string, string> = {
     critical: '#e74c3c',
 };
 
-export const TaskDetailsDialog: React.FC = () => {
-    const { selectedTaskDetails, setSelectedTaskDetails, projectColumns, projectMembers, mattermostUsers } = useStore();
+export const TaskDetailsDialog = () => {
+    const { selectedTaskDetails, setSelectedTaskDetails, projectColumns, projectMembers } = useStore();
+    const dialogRef = useRef<HTMLDivElement>(null);
+
+    const isOpen = !!selectedTaskDetails;
+
+    const handleClose = () => {
+        setSelectedTaskDetails(null);
+    };
+
+    useDialogEscape(handleClose, isOpen);
+
+    // Auto-focus dialog on open
+    useEffect(() => {
+        if (isOpen && dialogRef.current) {
+            const firstInput = dialogRef.current.querySelector('input, textarea, button:not([aria-label*=إغلاق])') as HTMLElement | null;
+            if (firstInput) firstInput.focus();
+        }
+    }, [isOpen]);
 
     if (!selectedTaskDetails) return null;
 
     const task = selectedTaskDetails;
 
     // Find the column this task is currently in based on its status
-    const currentColumn = projectColumns.find(c => c.id === task.status);
+    const currentColumn = projectColumns.find((c: KanbanColumn) => c.id === task.status);
     const statusText = currentColumn ? currentColumn.title : 'غير محدد';
 
     const assigneeMember = task.assignee_id ? projectMembers.find(m => m.user_id === task.assignee_id) : null;
@@ -43,27 +63,27 @@ export const TaskDetailsDialog: React.FC = () => {
     };
 
     return (
-        <div className="modal-overlay" onClick={() => setSelectedTaskDetails(null)}>
-            <div className="modal-dialog1 task-details-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={handleClose} role="dialog" aria-modal="true" aria-labelledby="dialog-title-TaskDetailsDialog">
+            <div className="modal-dialog1 task-details-modal" onClick={e => e.stopPropagation()} ref={dialogRef} tabIndex={-1}>
                 <div className="modal-dialog1__header">
-                    <h2 className="modal-dialog1__title">{task.title}</h2>
-                    <button className="modal-dialog1__close" onClick={() => setSelectedTaskDetails(null)}>
+                    <h2 id="dialog-title-TaskDetailsDialog" className="modal-dialog1__title">{task.title}</h2>
+                    <button className="modal-dialog1__close" onClick={handleClose} aria-label="إغلاق">
                         <X size={20} />
                     </button>
                 </div>
-                
+
                 <div className="modal-dialog1__content task-details-content">
                     <div className="task-details-grid">
                         <div className="task-details-section">
                             <h3 className="section-title">التفاصيل</h3>
-                            
+
                             <div className="details-row">
                                 <span className="details-label">الحالة:</span>
                                 <span className="details-value status-badge" style={{ backgroundColor: currentColumn?.color || '#eee', color: currentColumn?.color ? '#fff' : '#333' }}>
                                     {statusText}
                                 </span>
                             </div>
-                            
+
                             <div className="details-row">
                                 <span className="details-label">الأولوية:</span>
                                 <span className="details-value priority-badge" style={{ color: PRIORITY_COLORS[task.priority] }}>
@@ -75,15 +95,15 @@ export const TaskDetailsDialog: React.FC = () => {
 
                         <div className="task-details-section">
                             <h3 className="section-title">الأشخاص</h3>
-                            
+
                             <div className="details-row">
                                 <span className="details-label">المسند إليه:</span>
                                 <span className="details-value assignee-info">
                                     {assigneeMember ? (
-                                        <img 
-                                            src={`/api/v4/users/${assigneeMember.user_id}/image`} 
-                                            alt={assigneeName} 
-                                            className="task-details-avatar" 
+                                        <img
+                                            src={`/api/v4/users/${assigneeMember.user_id}/image`}
+                                            alt={assigneeName}
+                                            className="task-details-avatar"
                                         />
                                     ) : (
                                         <div className="task-details-avatar-placeholder">
@@ -97,14 +117,14 @@ export const TaskDetailsDialog: React.FC = () => {
 
                         <div className="task-details-section">
                             <h3 className="section-title">التواريخ</h3>
-                            
+
                             <div className="details-row">
                                 <span className="details-label">تاريخ الإنشاء:</span>
                                 <span className="details-value">
                                     {formatDate(task.created_at)}
                                 </span>
                             </div>
-                            
+
                             <div className="details-row">
                                 <span className="details-label">تاريخ التحديث:</span>
                                 <span className="details-value">
@@ -132,14 +152,14 @@ export const TaskDetailsDialog: React.FC = () => {
                         </h3>
                         <div className="task-details-description-content">
                             {task.description ? (
-                                <div 
+                                <div
                                     className="markdown-body"
-                                    dangerouslySetInnerHTML={{ 
-                                        __html: marked.parse(task.description, { 
-                                            gfm: true, 
-                                            breaks: true 
-                                        }) as string 
-                                    }} 
+                                    dangerouslySetInnerHTML={{
+                                        __html: DOMPurify.sanitize(marked.parse(task.description, {
+                                            gfm: true,
+                                            breaks: true
+                                        }) as string)
+                                    }}
                                 />
                             ) : (
                                 <p className="empty-description">لا يوجد وصف لهذه المهمة.</p>

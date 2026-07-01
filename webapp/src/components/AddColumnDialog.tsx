@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
+import type { KanbanColumn } from '../types';
+import useDialogEscape from '../hooks/useDialogEscape';
 
-export const AddColumnDialog: React.FC = () => {
+export const AddColumnDialog = () => {
     const {
         selectedProject,
         showAddColumnDialog,
         setShowAddColumnDialog,
-        projectColumns,
         setProjectColumns,
         setError,
     } = useStore();
@@ -16,6 +17,21 @@ export const AddColumnDialog: React.FC = () => {
     const [title, setTitle] = useState('');
     const [color, setColor] = useState('#64748b');
     const [submitting, setSubmitting] = useState(false);
+    const dialogRef = useRef<HTMLDivElement>(null);
+
+    const handleClose = () => {
+        setShowAddColumnDialog(false);
+    };
+
+    useDialogEscape(handleClose, !!showAddColumnDialog);
+
+    // Auto-focus first input on open
+    useEffect(() => {
+        if (showAddColumnDialog && dialogRef.current) {
+            const firstInput = dialogRef.current.querySelector('input, textarea, button:not([aria-label*=إغلاق])') as HTMLElement | null;
+            if (firstInput) firstInput.focus();
+        }
+    }, [showAddColumnDialog]);
 
     // Reset state when dialog opens
     useEffect(() => {
@@ -26,10 +42,6 @@ export const AddColumnDialog: React.FC = () => {
     }, [showAddColumnDialog]);
 
     if (!showAddColumnDialog || !selectedProject) return null;
-
-    const handleClose = () => {
-        setShowAddColumnDialog(false);
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -42,21 +54,22 @@ export const AddColumnDialog: React.FC = () => {
                 title: title.trim(),
                 color: color,
             });
-            setProjectColumns([...projectColumns, newCol]);
+            setProjectColumns((prev: KanbanColumn[]) => [...prev, newCol]);
             handleClose();
-        } catch (err: any) {
-            setError(err.message || 'فشل إنشاء العمود');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'فشل إنشاء العمود';
+            setError(message);
         } finally {
             setSubmitting(false);
         }
     };
 
     return (
-        <div className="modal-overlay" onClick={handleClose}>
-            <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={handleClose} role="dialog" aria-modal="true" aria-labelledby="dialog-title-AddColumnDialog">
+            <div className="modal-dialog1" onClick={e => e.stopPropagation()} ref={dialogRef}>
                 <div className="modal-dialog1__header">
-                    <h2 className="modal-dialog1__title">إضافة عمود جديد</h2>
-                    <button className="modal-dialog1__close" onClick={handleClose}>
+                    <h2 id="dialog-title-AddColumnDialog" className="modal-dialog1__title">إضافة عمود جديد</h2>
+                    <button className="modal-dialog1__close" onClick={handleClose} aria-label="إغلاق">
                         <X size={18} />
                     </button>
                 </div>
@@ -64,21 +77,21 @@ export const AddColumnDialog: React.FC = () => {
                 <form onSubmit={handleSubmit}>
                     <div className="modal-dialog1__body">
                         <div className="form-group">
-                            <label className="form-label">اسم العمود *</label>
+                            <label className="form-label" htmlFor="add-column-name">اسم العمود *</label>
                             <input
+                                id="add-column-name"
                                 type="text"
                                 className="form-input"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 placeholder="مثال: قيد المراجعة"
-                                autoFocus
                                 required
                             />
                         </div>
-                        
+
                         <div className="form-group">
                             <label className="form-label">اللون</label>
-                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
+                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }} role="radiogroup" aria-label="اختر لون العمود">
                                 {['#64748b', '#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'].map(c => (
                                     <button
                                         key={c}
@@ -96,6 +109,9 @@ export const AddColumnDialog: React.FC = () => {
                                             transform: color === c ? 'scale(1.1)' : 'scale(1)'
                                         }}
                                         title={c}
+                                        aria-label={`الون ${c}`}
+                                        aria-pressed={color === c}
+                                        role="radio"
                                     />
                                 ))}
                             </div>

@@ -3,7 +3,6 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Trash2, CalendarDays, Clock } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { api } from '../api/client';
 import type { Task, ProjectMember } from '../types';
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -21,8 +20,7 @@ interface TaskCardProps {
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOverlay = false, columnColor }) => {
-    const { selectedProject, setProjectTasks, setError, setDeleteTaskInfo, currentUser, setSelectedTaskDetails } = useStore();
-    const [deleting, setDeleting] = React.useState(false);
+    const { currentUser, setDeleteTaskInfo, setSelectedTaskDetails } = useStore();
 
     const {
         attributes,
@@ -40,7 +38,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
     });
 
     const style = isOverlay
-        ? { padding: 12, background: '#ffffff', border: '1px solid #e0e0e0', borderRadius: 8, width: 260 }
+        ? { padding: 12, background: 'var(--center-channel-bg)', border: '1px solid var(--center-channel-bg)', borderRadius: 8, width: 260, color: 'var(--center-channel-color)' }
         : {
             transform: CSS.Transform.toString(transform),
             transition,
@@ -52,7 +50,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
         ? projectMembers.find(m => m.user_id === task.assignee_id)
         : null;
 
-    const handleDelete = async (e: React.MouseEvent) => {
+    const handleDelete = (e: React.MouseEvent) => {
         e.stopPropagation();
         setDeleteTaskInfo(task);
     };
@@ -62,7 +60,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
     const canDelete = React.useMemo(() => {
         if (!currentUser) return false;
         if (task.assignee_id === currentUser.id) return true;
-        
+
         const member = projectMembers.find(m => m.user_id === currentUser.id);
         return member?.role === 'admin';
     }, [currentUser, task.assignee_id, projectMembers]);
@@ -78,13 +76,13 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
     if (isOverlay) {
         return (
             <div className="drag-overlay" style={style}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#333', marginBottom: 8 }}>{task.title}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{task.title}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span className={`task-card__priority task-card__priority--${task.priority}`}>
                         {PRIORITY_LABELS[task.priority]}
                     </span>
                     {assignee && (
-                        <span style={{ fontSize: 12, color: '#6b7280' }}>
+                        <span style={{ fontSize: 12 }}>
                             {assignee.display_name || assignee.username}
                         </span>
                     )}
@@ -106,8 +104,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, projectMembers, isOver
                 <button
                     className="task-card__delete"
                     onClick={handleDelete}
-                    disabled={deleting}
                     title="حذف المهمة"
+                    aria-label="حذف المهمة"
                 >
                     <Trash2 size={14} />
                 </button>

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -16,7 +17,9 @@ type Store struct {
 // newID generates a random UUID v4 string.
 func newID() string {
 	b := make([]byte, 16)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Sprintf("failed to generate random ID: %v", err))
+	}
 	b[6] = (b[6] & 0x0f) | 0x40 // version 4
 	b[8] = (b[8] & 0x3f) | 0x80 // variant 2
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
@@ -26,7 +29,7 @@ func newID() string {
 // NewStore opens (or creates) the SQLite database at the given plugin path
 // and runs any pending migrations.
 func NewStore(pluginPath string) (*Store, error) {
-	dbPath := pluginPath + "/jira.db"
+	dbPath := filepath.Join(pluginPath, "jira.db")
 
 	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_foreign_keys=on")
 	if err != nil {
@@ -95,10 +98,12 @@ func (s *Store) migrate() error {
 			updated_at  DATETIME NOT NULL DEFAULT (datetime('now')),
 			FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 		)`,
-		`UPDATE tasks SET status = project_id || '-backlog' WHERE status = 'backlog'`,
-		`UPDATE tasks SET status = project_id || '-todo' WHERE status = 'todo'`,
-		`UPDATE tasks SET status = project_id || '-in_progress' WHERE status = 'in_progress'`,
-		`UPDATE tasks SET status = project_id || '-done' WHERE status = 'done'`,
+		// One-time migration: add project_id prefix to bare status names.
+		// The WHERE clause prevents re-processing rows that already have a dash prefix.
+		`UPDATE tasks SET status = project_id || '-backlog' WHERE status = 'backlog' AND status NOT LIKE '%-%'`,
+		`UPDATE tasks SET status = project_id || '-todo' WHERE status = 'todo' AND status NOT LIKE '%-%'`,
+		`UPDATE tasks SET status = project_id || '-in_progress' WHERE status = 'in_progress' AND status NOT LIKE '%-%'`,
+		`UPDATE tasks SET status = project_id || '-done' WHERE status = 'done' AND status NOT LIKE '%-%'`,
 	}
 
 	for _, q := range queries {
@@ -123,7 +128,10 @@ func (s *Store) migrate() error {
 				projectIDs = append(projectIDs, pid)
 			}
 		}
-		
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("migration query rows error: %w", err)
+		}
+
 		for _, pid := range projectIDs {
 			// create default columns
 			columns := []struct{ id, title, color string }{
@@ -132,19 +140,29 @@ func (s *Store) migrate() error {
 				{pid + "-in_progress", "جاري العمل", "#f59e0b"},
 				{pid + "-completed", "مكتمل", "#10b981"},
 			}
-			
+
 			for i, c := range columns {
-				s.db.Exec(`
+				if _, err := s.db.Exec(`
 					INSERT INTO project_columns (id, project_id, title, color, sort_order)
 					VALUES (?, ?, ?, ?, ?)
-				`, c.id, pid, c.title, c.color, i)
+				`, c.id, pid, c.title, c.color, i); err != nil {
+					return fmt.Errorf("migrate insert default column for project %s: %w", pid, err)
+				}
 			}
-			
+
 			// update existing tasks
-			s.db.Exec(`UPDATE tasks SET status = ? WHERE project_id = ? AND status = 'backlog'`, pid+"-backlog", pid)
-			s.db.Exec(`UPDATE tasks SET status = ? WHERE project_id = ? AND status = 'todo'`, pid+"-todo", pid)
-			s.db.Exec(`UPDATE tasks SET status = ? WHERE project_id = ? AND status = 'in_progress'`, pid+"-in_progress", pid)
-			s.db.Exec(`UPDATE tasks SET status = ? WHERE project_id = ? AND status = 'completed'`, pid+"-completed", pid)
+			if _, err := s.db.Exec(`UPDATE tasks SET status = ? WHERE project_id = ? AND status = 'backlog'`, pid+"-backlog", pid); err != nil {
+				return fmt.Errorf("migrate update backlog status for project %s: %w", pid, err)
+			}
+			if _, err := s.db.Exec(`UPDATE tasks SET status = ? WHERE project_id = ? AND status = 'todo'`, pid+"-todo", pid); err != nil {
+				return fmt.Errorf("migrate update todo status for project %s: %w", pid, err)
+			}
+			if _, err := s.db.Exec(`UPDATE tasks SET status = ? WHERE project_id = ? AND status = 'in_progress'`, pid+"-in_progress", pid); err != nil {
+				return fmt.Errorf("migrate update in_progress status for project %s: %w", pid, err)
+			}
+			if _, err := s.db.Exec(`UPDATE tasks SET status = ? WHERE project_id = ? AND status = 'completed'`, pid+"-completed", pid); err != nil {
+				return fmt.Errorf("migrate update completed status for project %s: %w", pid, err)
+			}
 		}
 	}
 

@@ -1,14 +1,8 @@
 import React, { useEffect, useCallback } from 'react';
-import { Plus, Users, Trash2, AlertCircle, X, Menu, ChevronDown, FolderPlus } from 'lucide-react';
+import { Plus, Users, Trash2, AlertCircle, X, Menu, FolderPlus } from 'lucide-react';
 
-const KanbanIcon = ({ className, size = 16 }: { className?: string, size?: number | string }) => (
-    <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-        <path d="M8 7v7"/>
-        <path d="M12 7v4"/>
-        <path d="M16 7v9"/>
-    </svg>
-);
+import KanbanIcon from './KanbanIcon';
+import ErrorBoundary from './ErrorBoundary';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
 import type { Project } from '../types';
@@ -34,7 +28,6 @@ export const PluginRoot: React.FC = () => {
         currentUser,
         projectMembers,
         projectTasks,
-        projectColumns,
         loading,
         error,
         showCreateProjectDialog,
@@ -50,9 +43,18 @@ export const PluginRoot: React.FC = () => {
         setShowCreateProjectDialog,
         setShowAddMembersDialog,
         setDeleteProjectInfo,
-        selectedTaskDetails,
-        setSelectedTaskDetails,
     } = useStore();
+
+    // Zustand selectors for conditional dialog rendering
+    const showAddTaskDialog = useStore(s => s.showAddTaskDialog);
+    const showAddColumnDialog = useStore(s => s.showAddColumnDialog);
+    const showEditColumn = useStore(s => s.editColumn);
+    const showDeleteColumn = useStore(s => s.deleteColumnInfo);
+    const showDeleteProject = useStore(s => s.deleteProjectInfo);
+    const showDeleteTask = useStore(s => s.deleteTaskInfo);
+    const showTaskDetails = useStore(s => s.selectedTaskDetails);
+    const showDeleteMember = useStore(s => s.deleteMemberInfo);
+    const showAlertMessage = useStore(s => s.alertMessage);
 
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
     const [isCreateDropdownOpen, setIsCreateDropdownOpen] = React.useState(false);
@@ -95,11 +97,12 @@ export const PluginRoot: React.FC = () => {
         try {
             const data = await api.getProjects();
             setProjects(Array.isArray(data) ? data : []);
-            
+
             const me = await api.getMe();
             setCurrentUser({ id: me.id, isAdmin: me.is_admin });
-        } catch (err: any) {
-            setError(err.message || 'Failed to load projects');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to load projects';
+            setError(message);
         } finally {
             setLoading(false);
         }
@@ -110,29 +113,49 @@ export const PluginRoot: React.FC = () => {
     }, [loadProjects]);
 
     // WebSocket sync listener
+    const wsEvent = useStore(s => s.wsEvent);
+    const setWsEvent = useStore(s => s.setWsEvent);
+
+    // Custom event listener for WebSocket updates
     useEffect(() => {
-        const handleRefresh = (e: any) => {
-            const pid = e.detail?.project_id;
+        const handleRefresh = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            const pid = customEvent.detail?.project_id;
             loadProjects();
 
             if (selectedProject && selectedProject.id === pid) {
-                api.getProjectMembers(pid).then(m => {
-                    setProjectMembers(Array.isArray(m) ? m : []);
-                }).catch(() => {});
-
-                api.getProjectTasks(pid).then(t => {
-                    setProjectTasks(Array.isArray(t) ? t : []);
-                }).catch(() => {});
-                
-                api.getProjectColumns(pid).then(c => {
-                    setProjectColumns(Array.isArray(c) ? c : []);
-                }).catch(() => {});
+                setWsEvent({ data: { project_id: pid } });
             }
         };
 
         window.addEventListener('jira_project_updated', handleRefresh);
         return () => window.removeEventListener('jira_project_updated', handleRefresh);
-    }, [selectedProject, loadProjects, setProjectMembers, setProjectTasks, setProjectColumns]);
+    }, [selectedProject, loadProjects, setWsEvent]);
+
+    // WebSocket race condition fix with Promise.all and cancellation flag
+    useEffect(() => {
+        if (!wsEvent) return;
+        let cancelled = false;
+        const pid = wsEvent.data?.project_id as string;
+        if (!pid) return;
+        Promise.all([
+            api.getProjectMembers(pid),
+            api.getProjectTasks(pid),
+            api.getProjectColumns(pid),
+        ]).then(([m, t, c]) => {
+            if (cancelled) return;
+            setProjectMembers(Array.isArray(m) ? m : []);
+            setProjectTasks(Array.isArray(t) ? t : []);
+            setProjectColumns(Array.isArray(c) ? c : []);
+        }).catch(err => {
+            if (!cancelled) {
+                const message = err instanceof Error ? err.message : 'فشل تحديث البيانات';
+                setError(message);
+            }
+        });
+        setWsEvent(null);
+        return () => { cancelled = true; };
+    }, [wsEvent, setProjectMembers, setProjectTasks, setProjectColumns, setError, setWsEvent]);
 
     // Kick user out if they are removed from the currently selected project
     useEffect(() => {
@@ -158,8 +181,9 @@ export const PluginRoot: React.FC = () => {
             setProjectMembers(Array.isArray(membersData) ? membersData : []);
             setProjectTasks(Array.isArray(tasksData) ? tasksData : []);
             setProjectColumns(Array.isArray(columnsData) ? columnsData : []);
-        } catch (err: any) {
-            setError(err.message || 'فشل تحميل بيانات المشروع');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'فشل تحميل بيانات المشروع';
+            setError(message);
         } finally {
             setLoading(false);
         }
@@ -170,24 +194,13 @@ export const PluginRoot: React.FC = () => {
         loadProjectData(project);
     };
 
-    const handleDeleteProject = async (e: React.MouseEvent) => {
+    const handleDeleteProject = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!selectedProject) return;
         setDeleteProjectInfo(selectedProject);
     };
 
-    const getInitials = (name: string) => {
-        const parts = name.trim().split(/\s+/);
-        if (parts.length >= 2) {
-            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-        }
-        return name.substring(0, 2).toUpperCase();
-    };
-
     const totalTasks = projectTasks.length;
-    const doneTasks = projectTasks.filter(t => t.status === 'done').length;
-    const inProgressTasks = projectTasks.filter(t => t.status === 'in_progress').length;
-    const todoTasks = projectTasks.filter(t => t.status === 'todo').length;
 
     const isProjectAdmin = React.useMemo(() => {
         if (!currentUser || !selectedProject) return false;
@@ -198,8 +211,8 @@ export const PluginRoot: React.FC = () => {
     return (
         <div className="plugin-root">
                     {/* Mobile Sidebar Overlay */}
-                    <div 
-                        className={`plugin-sidebar-overlay ${isMobileSidebarOpen ? 'open' : ''}`} 
+                    <div
+                        className={`plugin-sidebar-overlay ${isMobileSidebarOpen ? 'open' : ''}`}
                         onClick={() => setIsMobileSidebarOpen(false)}
                     />
 
@@ -218,6 +231,8 @@ export const PluginRoot: React.FC = () => {
                                         onClick={openCreateDropdown}
                                         title="إنشاء مشروع جديد"
                                         aria-label="قائمة منسدلة لإنشاء مشروع"
+                                        aria-expanded={isCreateDropdownOpen}
+                                        aria-haspopup="true"
                                     >
                                         <Plus size={18} />
                                     </button>
@@ -255,10 +270,14 @@ export const PluginRoot: React.FC = () => {
                                     className={`plugin-sidebar__project-item ${
                                         selectedProject?.id === project.id ? 'plugin-sidebar__project-item--active' : ''
                                     }`}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-selected={selectedProject?.id === project.id}
                                     onClick={() => {
                                         handleSelectProject(project);
                                         setIsMobileSidebarOpen(false);
                                     }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectProject(project); } }}
                                 >
                                     <span className="plugin-sidebar__project-name">
                                         {project.name}
@@ -276,7 +295,7 @@ export const PluginRoot: React.FC = () => {
                     {/* Main Content */}
                     <main className="plugin-main">
                         <div className="mobile-top-bar">
-                            <button className="mobile-menu-btn" onClick={() => setIsMobileSidebarOpen(true)}>
+                            <button className="mobile-menu-btn" onClick={() => setIsMobileSidebarOpen(true)} aria-label="فتح القائمة الجانبية">
                                 <Menu size={20} />
                             </button>
                             <span className="mobile-top-bar__title">مشاريع جيرا</span>
@@ -286,7 +305,7 @@ export const PluginRoot: React.FC = () => {
                             <div className="error-banner">
                                 <AlertCircle />
                                 <span>{error}</span>
-                                <button className="error-banner__close" onClick={() => setError(null)}>
+                                <button className="error-banner__close" onClick={() => setError(null)} aria-label="إغلاق رسالة الخطأ">
                                     <X size={14} />
                                 </button>
                             </div>
@@ -377,23 +396,25 @@ export const PluginRoot: React.FC = () => {
                                 </div>
 
                                 {/* Kanban Board */}
-                                <KanbanBoard />
+                                <ErrorBoundary>
+                                    <KanbanBoard />
+                                </ErrorBoundary>
                             </>
                         )}
                     </main>
 
-                    {/* Dialogs */}
+                    {/* Dialogs — conditionally rendered */}
                     {showCreateProjectDialog && <CreateProjectDialog />}
                     {showAddMembersDialog && <AddMembersDialog />}
-                    <AddTaskDialog />
-                    <AddColumnDialog />
-                    <EditColumnDialog />
-                    <DeleteColumnDialog />
-                    <DeleteProjectDialog />
-                    <DeleteTaskDialog />
-                    <TaskDetailsDialog />
-                    <RemoveMemberDialog />
-                    <AlertDialog />
+                    {showAddTaskDialog && <AddTaskDialog />}
+                    {showAddColumnDialog && <AddColumnDialog />}
+                    {showEditColumn && <EditColumnDialog />}
+                    {showDeleteColumn && <DeleteColumnDialog />}
+                    {showDeleteProject && <DeleteProjectDialog />}
+                    {showDeleteTask && <DeleteTaskDialog />}
+                    {showTaskDetails && <TaskDetailsDialog />}
+                    {showDeleteMember && <RemoveMemberDialog />}
+                    {showAlertMessage && <AlertDialog />}
                 </div>
     );
 };

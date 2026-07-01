@@ -51,4 +51,4 @@ export interface KanbanColumn {
     updated_at: string;
 }
 
-export type TaskStatus = string;
+export type TaskStatus = Task['status'];

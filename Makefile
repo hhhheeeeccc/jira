@@ -1,4 +1,4 @@
-GO ?= $(HOME)/go-sdk/go/bin/go
+GO ?= go
 GOFLAGS ?=
 GOPATH ?= $(shell $(GO) env GOPATH 2>/dev/null)
 GOBIN ?= $(GOPATH)/bin
@@ -6,13 +6,12 @@ COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
 BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 VERSION ?= $(shell grep '"version"' plugin.json | sed -E 's/.*"version": "([^"]+)".*/\1/')
 
-export GOTOOLCHAIN := local
+export GOTOOLCHAIN := auto
 export CGO_ENABLED := 1
-export CGO_CFLAGS := -Wno-return-local-addr
 
 GO_BUILD_FLAGS := -ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildDate=$(BUILD_DATE)"
 
-.PHONY: all dist server webapp clean test setup
+.PHONY: all dist server webapp server-dev webapp-dev clean test setup
 
 all: dist
 
@@ -22,7 +21,8 @@ dist: server webapp
 	tar -czf dist/jira-plugin-$(VERSION).tar.gz \
 		plugin.json \
 		server/dist/plugin-linux-amd64 \
-		webapp/dist/main.js
+		webapp/dist/main.js \
+		$$(test -d assets && echo "assets/" || true)
 	@echo "==> dist/jira-plugin-$(VERSION).tar.gz created successfully!"
 	@ls -lh dist/jira-plugin-$(VERSION).tar.gz
 
@@ -40,7 +40,7 @@ webapp:
 server-dev:
 	@echo "==> Building server (dev, current platform)..."
 	@mkdir -p server/dist
-	cd server && $(GO) build $(GOFLAGS) $(GO_BUILD_FLAGS) -o dist/plugin-linux-amd64
+	cd server && $(GO) build $(GOFLAGS) $(GO_BUILD_FLAGS) -o dist/plugin-$$(go env GOOS)-$$(go env GOARCH)
 	@echo "==> Server built (dev)."
 
 webapp-dev:
@@ -53,7 +53,9 @@ clean:
 	rm -rf dist/
 	@echo "==> Cleaned."
 
-test:
+test: server-test
+
+server-test:
 	cd server && $(GO) test ./... -v
 
 setup:
