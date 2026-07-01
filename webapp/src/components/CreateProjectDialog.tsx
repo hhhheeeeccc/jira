@@ -6,7 +6,7 @@ import type { Project } from '../types';
 import useDialogEscape from '../hooks/useDialogEscape';
 
 export const CreateProjectDialog = () => {
-    const { showCreateProjectDialog, setShowCreateProjectDialog, setProjects, setSelectedProject, setError } = useStore();
+    const { showCreateProjectDialog, setShowCreateProjectDialog, setProjects, setSelectedProject, setError, setWsEvent } = useStore();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -40,6 +40,7 @@ export const CreateProjectDialog = () => {
             setProjects(Array.isArray(projects) ? projects : []);
             setSelectedProject(newProject);
             setShowCreateProjectDialog(false);
+            setWsEvent({ data: { project_id: newProject.id } });
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'فشل إنشاء المشروع';
             setError(message);

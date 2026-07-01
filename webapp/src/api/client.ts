@@ -32,8 +32,8 @@ export const api = {
     getProjects: (): Promise<Project[]> =>
         fetch(`${BASE_URL}/projects`, getOptions()).then(r => handleResponse<Project[]>(r)),
 
-    getProject: (id: string): Promise<Project> =>
-        fetch(`${BASE_URL}/projects/${id}`, getOptions()).then(r => handleResponse<Project>(r)),
+    getProject: (id: string): Promise<{ project: Project; tasks: Task[]; members: ProjectMember[] }> =>
+        fetch(`${BASE_URL}/projects/${id}`, getOptions()).then(r => handleResponse<{ project: Project; tasks: Task[]; members: ProjectMember[] }>(r)),
 
     createProject: (data: { name: string; description?: string }): Promise<Project> =>
         fetch(`${BASE_URL}/projects`, getOptions({

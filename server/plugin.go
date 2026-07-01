@@ -610,15 +610,33 @@ func (p *Plugin) handleUpdateTask(w http.ResponseWriter, r *http.Request, taskID
                 return
         }
 
+        // Check membership
+        isMember, err := p.isProjectMember(task.ProjectID, userID)
+        if err != nil {
+                p.API.LogError("Failed to check membership", "error", err.Error())
+                writeError(w, http.StatusInternalServerError, "failed to check permissions")
+                return
+        }
+        if !isMember {
+                writeError(w, http.StatusForbidden, "you are not a member of this project")
+                return
+        }
+
+        // Non-admins can only update status and sort_order (drag-and-drop)
         isAdmin, err := p.isProjectAdmin(task.ProjectID, userID)
         if err != nil {
-                p.API.LogError("Failed to check permissions", "error", err.Error())
+                p.API.LogError("Failed to check admin status", "error", err.Error())
                 writeError(w, http.StatusInternalServerError, "failed to check permissions")
                 return
         }
         if !isAdmin {
-                writeError(w, http.StatusForbidden, "only project admins can update tasks")
-                return
+                allowed := map[string]bool{"status": true, "sort_order": true}
+                for key := range body {
+                        if !allowed[key] {
+                                writeError(w, http.StatusForbidden, "only project admins can update this field")
+                                return
+                        }
+                }
         }
 
         // Translate JSON keys to column names.

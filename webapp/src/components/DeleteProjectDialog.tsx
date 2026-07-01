@@ -11,7 +11,11 @@ export const DeleteProjectDialog = () => {
         projects,
         setProjects,
         setSelectedProject,
+        setProjectTasks,
+        setProjectMembers,
+        setProjectColumns,
         setError,
+        setWsEvent,
     } = useStore();
 
     const [submitting, setSubmitting] = useState(false);
@@ -42,7 +46,16 @@ export const DeleteProjectDialog = () => {
             await api.deleteProject(deleteProjectInfo.id);
             const updatedProjects = projects.filter(p => p.id !== deleteProjectInfo.id);
             setProjects(updatedProjects);
-            setSelectedProject(updatedProjects.length > 0 ? updatedProjects[0] : null);
+            // Clear old project data
+            setProjectTasks([]);
+            setProjectMembers([]);
+            setProjectColumns([]);
+            if (updatedProjects.length > 0) {
+                setSelectedProject(updatedProjects[0]);
+                setWsEvent({ data: { project_id: updatedProjects[0].id } });
+            } else {
+                setSelectedProject(null);
+            }
             handleClose();
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'فشل حذف المشروع';
