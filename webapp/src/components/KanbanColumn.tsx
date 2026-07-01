@@ -15,9 +15,6 @@ interface KanbanColumnProps {
     isDragOver: boolean;
 }
 
-// Default column suffixes used to determine if a column is a default (non-deletable) column.
-const DEFAULT_COLUMN_SUFFIXES = ['-backlog', '-todo', '-in_progress', '-completed'];
-
 export const KanbanColumn: React.FC<KanbanColumnProps> = ({
     id,
     title,
@@ -54,7 +51,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
     const showDragHighlight = isDragOver || isOver;
 
-    const isDefaultColumn = DEFAULT_COLUMN_SUFFIXES.some(suffix => id.endsWith(suffix));
+    const isDefaultColumn = ['-backlog', '-todo', '-in_progress', '-completed'].some(suffix => id.endsWith(suffix));
 
     return (
         <div className={`kanban-column ${showDragHighlight ? 'kanban-column--drag-over' : ''}`}>
@@ -67,10 +64,10 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 </div>
                 {!isDefaultColumn && (
                     <div className="kanban-column__actions" style={{ display: 'flex', gap: '4px' }}>
-                        <button onClick={handleEditColumn} title="تعديل العمود" aria-label="تعديل العمود" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-text-muted)' }}>
+                        <button onClick={handleEditColumn} title="تعديل العمود" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-text-muted)' }}>
                             <Edit2 size={14} />
                         </button>
-                        <button onClick={handleDeleteColumn} title="حذف العمود" aria-label="حذف العمود" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-error-text)' }}>
+                        <button onClick={handleDeleteColumn} title="حذف العمود" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mm-error-text)' }}>
                             <Trash2 size={14} />
                         </button>
                     </div>

@@ -4,11 +4,11 @@
 
 ## الميزات
 
-- **إدارة المشاريع**: إنشاء وحذف المشاريع
-- **إدارة الأعضاء**: إضافة مستخدمي workspace كمشاركين في المشاريع
-- **إدارة المهام**: إنشاء مهام مع أولوية وتاريخ ومسؤول
-- **كانبان بورد**: 4 أعمدة (الخلفية، قيد التنفيذ، جاري العمل، مكتمل)
-- **سحب وإفلات**: نقل المهام بين الأعمدة
+- **إدارة المشاريع**: إنشاء وتعديل وحذف المشاريع (مع إمكانية تقييد الإنشاء للمسؤولين فقط من إعدادات الإضافة).
+- **إدارة الأعضاء**: إضافة مستخدمي workspace كمشاركين في المشاريع أو إزالتهم.
+- **إدارة المهام**: إنشاء مهام مع أولوية، تاريخ، ومسؤول وتفاصيل إضافية.
+- **إدارة الأعمدة (جديد)**: تخصيص مساحة العمل عبر إنشاء، تعديل، وحذف أعمدة الكانبان بشكل ديناميكي.
+- **كانبان بورد**: عرض المهام على شكل بطاقات مع إمكانية السحب والإفلات لنقل المهام بين الأعمدة.
 
 ## المتطلبات
 
@@ -19,29 +19,29 @@
 ## البناء والتشغيل
 
 ```bash
-# تثبيت المتطلبات
+# تثبيت المتطلبات للواجهة
 make setup
 
 # بناء ملف التوزيع (يُنشئ dist/jira-plugin-1.0.0.tar.gz)
 make dist
 
-# أو بناء السيرفر فقط للجهاز الحالي
-make server-dev
+# بناء السيرفر فقط (باكند)
+make server
 
-# بناء الواجهة فقط
+# بناء الواجهة فقط (فرونت إند)
 make webapp
 ```
 
-## التثبيت على workspace
+## التثبيت على workspace (Mattermost)
 
 1. شغّل `make dist` لإنشاء ملف `.tar.gz`
 2. ارفع الملف من **System Console > Plugins > Management > Upload Plugin**
-3. فعّل البلاجن
+3. فعّل الإضافة من نفس القائمة.
 
 ## هيكل المشروع
 
-```
-├── plugin.json          # بيانات البلاجن
+```text
+├── plugin.json          # بيانات البلاجن والإعدادات
 ├── Makefile             # أوامر البناء
 ├── go.mod               # تبعيات Go
 ├── server/              # كود Go (باكند البلاجن)
@@ -50,18 +50,19 @@ make webapp
 │   └── store/           # قاعدة بيانات SQLite
 │       ├── store.go     # تهيئة DB + migration
 │       ├── project.go   # CRUD للمشاريع والأعضاء
+│       ├── column.go    # CRUD للأعمدة
 │       └── task.go      # CRUD للمهام
 └── webapp/              # واجهة React
     ├── package.json
     ├── webpack.config.js
     └── src/
-        ├── index.tsx        # تسجيل البلاجن
-        ├── register.tsx     # registerRootComponent
-        ├── api/client.ts    # API client
-        ├── store/useStore.ts # Zustand state
-        ├── types/index.ts   # TypeScript types
-        ├── components/      # مكونات React
-        └── styles/main.css  # تنسيقات
+        ├── index.tsx        # نقطة الدخول
+        ├── register.tsx     # تسجيل المكونات والأيقونات
+        ├── api/client.ts    # دوال الاتصال بالسيرفر
+        ├── store/useStore.ts # إدارة الحالة عبر Zustand
+        ├── types/index.ts   # أنواع TypeScript
+        ├── components/      # مكونات React (النوافذ المنبثقة، البطاقات، الأعمدة)
+        └── styles/main.css  # التنسيقات العامة
 ```
 
 ## API Routes
@@ -70,14 +71,20 @@ make webapp
 
 | Method | Route | الوصف |
 |--------|-------|-------|
-| GET | /projects | قائمة المشاريع |
-| POST | /projects | إنشاء مشروع |
-| GET | /projects/{id} | تفاصيل مشروع |
-| DELETE | /projects/{id} | حذف مشروع |
-| POST | /projects/{id}/members | إضافة أعضاء |
-| DELETE | /projects/{id}/members/{userId} | إزالة عضو |
-| GET | /projects/{id}/tasks | قائمة المهام |
-| POST | /projects/{id}/tasks | إنشاء مهمة |
-| PATCH | /tasks/{id} | تحديث مهمة |
-| DELETE | /tasks/{id} | حذف مهمة |
-| GET | /users | مستخدمي workspace |
+| GET    | `/me` | بيانات المستخدم الحالي وصلاحياته |
+| GET    | `/projects` | قائمة المشاريع |
+| POST   | `/projects` | إنشاء مشروع |
+| GET    | `/projects/{id}` | تفاصيل مشروع |
+| DELETE | `/projects/{id}` | حذف مشروع |
+| GET    | `/projects/{id}/members` | قائمة أعضاء المشروع |
+| POST   | `/projects/{id}/members` | إضافة أعضاء للمشروع |
+| DELETE | `/projects/{id}/members/{userId}` | إزالة عضو من المشروع |
+| GET    | `/projects/{id}/columns` | قائمة الأعمدة الخاصة بالمشروع |
+| POST   | `/projects/{id}/columns` | إضافة عمود جديد للمشروع |
+| PATCH  | `/columns/{id}` | تعديل بيانات عمود (الاسم/اللون) |
+| DELETE | `/columns/{id}` | حذف عمود |
+| GET    | `/projects/{id}/tasks` | قائمة المهام الخاصة بالمشروع |
+| POST   | `/projects/{id}/tasks` | إنشاء مهمة جديدة |
+| PATCH  | `/tasks/{id}` | تحديث تفاصيل مهمة أو نقلها لعمود آخر |
+| DELETE | `/tasks/{id}` | حذف مهمة |
+| GET    | `/users` | جلب قائمة بمستخدمي workspace |

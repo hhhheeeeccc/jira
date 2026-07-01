@@ -1,12 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, UserMinus, UserPlus, Search } from 'lucide-react';
-import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
 
 export const AddMembersDialog: React.FC = () => {
-    const dialogRef = useRef<HTMLDivElement>(null);
-
     const {
         selectedProject,
         projectMembers,
@@ -16,25 +13,24 @@ export const AddMembersDialog: React.FC = () => {
         setMattermostUsers,
         setError,
         setDeleteMemberInfo,
+        currentUser,
     } = useStore();
-
-    useFocusTrap(dialogRef, !!selectedProject);
 
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
     const [removingUserId, setRemovingUserId] = useState<string | null>(null);
     const [adding, setAdding] = useState(false);
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [usersPage, setUsersPage] = useState(1);
-    const [hasMoreUsers, setHasMoreUsers] = useState(true);
 
     useEffect(() => {
         const loadUsers = async () => {
             setLoadingUsers(true);
             try {
-                const users = await api.getUsers(1);
+                const users = await fetch('/plugins/com.workspace.plugin.jira/api/v1/users').then(r => {
+                    if (!r.ok) throw new Error('فشل تحميل المستخدمين');
+                    return r.json();
+                });
                 setMattermostUsers(Array.isArray(users) ? users : []);
-                setHasMoreUsers(users.length >= 200);
             } catch (err: any) {
                 console.error('Failed to load users:', err);
             } finally {
@@ -45,6 +41,12 @@ export const AddMembersDialog: React.FC = () => {
     }, [setMattermostUsers]);
 
     if (!selectedProject) return null;
+
+    const isProjectAdmin = React.useMemo(() => {
+        if (!currentUser || !selectedProject) return false;
+        const member = projectMembers.find(m => m.user_id === currentUser.id);
+        return member?.role === 'admin';
+    }, [currentUser, selectedProject, projectMembers]);
 
     const currentMemberUserIds = new Set(projectMembers.map(m => m.user_id));
     const availableUsers = mattermostUsers.filter(u => !currentMemberUserIds.has(u.id));
@@ -57,23 +59,6 @@ export const AddMembersDialog: React.FC = () => {
             (u.display_name && u.display_name.toLowerCase().includes(q))
         );
     }, [availableUsers, searchQuery]);
-
-    const loadMoreUsers = async () => {
-        const nextPage = usersPage + 1;
-        setLoadingUsers(true);
-        try {
-            const users = await api.getUsers(nextPage);
-            const newUsers = Array.isArray(users) ? users : [];
-            const current = mattermostUsers as any[];
-            setMattermostUsers([...current, ...newUsers]);
-            setHasMoreUsers(users.length >= 200);
-            setUsersPage(nextPage);
-        } catch (err: any) {
-            console.error('Failed to load more users:', err);
-        } finally {
-            setLoadingUsers(false);
-        }
-    };
 
     const handleClose = () => {
         setShowAddMembersDialog(false);
@@ -117,8 +102,8 @@ export const AddMembersDialog: React.FC = () => {
     };
 
     return (
-        <div className="modal-overlay" onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
-            <div className="modal-dialog1 members-modal" ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={handleClose}>
+            <div className="modal-dialog1 members-modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header">
                     <h2 className="modal-dialog1__title">إدارة أعضاء المشروع</h2>
                     <button className="modal-dialog1__close" onClick={handleClose}>
@@ -150,7 +135,7 @@ export const AddMembersDialog: React.FC = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        {member.role !== 'admin' && (
+                                        {isProjectAdmin && member.role !== 'admin' && (
                                             <button
                                                 className="member-item__remove"
                                                 onClick={() => handleRemoveMember(member.user_id)}
@@ -167,7 +152,7 @@ export const AddMembersDialog: React.FC = () => {
                     </div>
 
                     {/* Add New Members */}
-                    {availableUsers.length > 0 && (
+                    {isProjectAdmin && availableUsers.length > 0 && (
                         <div className="members-section">
                             <div className="members-section__title">إضافة أعضاء جدد</div>
                             
@@ -212,17 +197,6 @@ export const AddMembersDialog: React.FC = () => {
                                         );
                                     })}
                                 </div>
-                            )}
-                            {hasMoreUsers && (
-                                <button
-                                    type="button"
-                                    className="btn btn-ghost"
-                                    onClick={loadMoreUsers}
-                                    disabled={loadingUsers}
-                                    style={{ width: '100%', marginTop: '8px' }}
-                                >
-                                    {loadingUsers ? 'جارٍ التحميل...' : 'تحميل المزيد من المستخدمين'}
-                                </button>
                             )}
                         </div>
                     )}

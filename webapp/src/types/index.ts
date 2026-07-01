@@ -25,8 +25,8 @@ export interface Task {
     description: string | null;
     due_date: string | null;
     due_time: string | null;
-    priority: string;
-    status: string;
+    priority: 'low' | 'medium' | 'high' | 'critical';
+    status: 'backlog' | 'todo' | 'in_progress' | 'done';
     sort_order: number;
     project_id: string;
     assignee_id: string | null;
@@ -38,6 +38,7 @@ export interface MattermostUser {
     id: string;
     username: string;
     display_name: string;
+    email: string;
 }
 
 export interface KanbanColumn {

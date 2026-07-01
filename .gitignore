@@ -7,6 +7,3 @@ dist/
 *.db
 *.exe
 .DS_Store
-download/
-upload/
-*.tar.gz

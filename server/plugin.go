@@ -5,7 +5,6 @@ import (
         "encoding/json"
         "fmt"
         "net/http"
-        "regexp"
         "strconv"
         "strings"
 
@@ -17,72 +16,9 @@ import (
 const (
         pluginID       = "com.workspace.plugin.jira"
         botUsername     = "jira.project.bot"
-        botDisplayName = "Jira Project Bot"
-        botDescription = "System bot for Jira Project Management plugin notifications"
-
-        // Maximum request body size (1 MB).
-        maxRequestBodyBytes = 1 << 20
-
-        // Allowed column names for task updates – prevents SQL injection via column names.
-        allowedTaskColumns = "title|description|due_date|due_time|priority|status|sort_order|assignee_id"
-
-        // WebSocket event name (constant to avoid typos).
-        wsEventProjectUpdated = "custom_" + pluginID + "_project_updated"
-
-        // Allowed priority values.
-        allowedPriorities = "low|medium|high|critical"
-
-        // Maximum field lengths.
-        maxProjectNameLen    = 200
-        maxProjectDescLen    = 2000
-        maxTaskTitleLen      = 500
-        maxTaskDescLen       = 5000
-        maxColumnNameLen     = 100
-        maxMembersPerRequest = 50
+        botDisplayName = "بوت إدارة المشاريع"
+        botDescription = "بوت نظام لإشعارات إضافة إدارة المشاريع"
 )
-
-// Valid column name checker (compiled once).
-var validTaskColumnRe = regexp.MustCompile(`^(` + allowedTaskColumns + `)$`)
-
-// Valid color format checker (hex color).
-var validColorRe = regexp.MustCompile(`^#[0-9a-fA-F]{3,8}$`)
-
-// Valid date format checker (YYYY-MM-DD).
-var validDateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
-
-// Valid time format checker (HH:MM).
-var validTimeRe = regexp.MustCompile(`^\d{2}:\d{2}$`)
-
-// Valid priority checker.
-var validPriorityRe = regexp.MustCompile(`^(` + allowedPriorities + `)$`)
-
-// Valid column ID checker (must look like UUID-suffix pattern).
-// Kept for potential future use in stricter input validation.
-// var validColumnIDRe = regexp.MustCompile(`^[a-f0-9\-]+$`)
-
-// countTasksByColumn counts tasks whose status matches the given column ID.
-func countTasksByColumn(db *sql.DB, columnID string) (int, error) {
-        var count int
-        err := db.QueryRow(`SELECT COUNT(*) FROM tasks WHERE status = ?`, columnID).Scan(&count)
-        return count, err
-}
-
-// isValidColumnID checks that a status value corresponds to an actual column in the project.
-func (p *Plugin) isValidColumnID(projectID, status string) bool {
-        if !strings.HasPrefix(status, projectID+"-") {
-                return false
-        }
-        columns, err := p.store.GetProjectColumns(projectID)
-        if err != nil {
-                return false
-        }
-        for _, c := range columns {
-                if c.ID == status {
-                        return true
-                }
-        }
-        return false
-}
 
 // Plugin is the core implementation registered with Mattermost.
 type Plugin struct {
@@ -108,50 +44,30 @@ func NewPlugin() *Plugin {
         return &Plugin{}
 }
 
-// getConfigValue retrieves a plugin setting by key.
-func (p *Plugin) getConfigValue(key string) (interface{}, error) {
-        config := p.API.GetPluginConfig()
-        if config == nil {
-                return nil, nil
-        }
-        val, ok := config[key]
-        if !ok {
-                return nil, nil
-        }
-        return val, nil
-}
-
-// isAdminOnly returns whether the EnableAdminOnly setting is true.
-func (p *Plugin) isAdminOnly() bool {
-        val, err := p.getConfigValue("EnableAdminOnly")
-        if err != nil || val == nil {
-                return false
-        }
-        if b, ok := val.(bool); ok {
-                return b
-        }
-        return false
-}
-
-// isUserSystemAdmin checks if a user has the system_admin role.
-func (p *Plugin) isUserSystemAdmin(userID string) bool {
-        user, err := p.API.GetUser(userID)
-        if err != nil || user == nil {
-                return false
-        }
-        return strings.Contains(user.Roles, "system_admin")
-}
-
 // ensureBot creates or finds the bot user and stores its ID.
 func (p *Plugin) ensureBot() error {
         // Try to find existing bot by username
         if user, appErr := p.API.GetUserByUsername(botUsername); appErr == nil && user != nil {
                 p.botUserID = user.Id
-                p.API.LogInfo("Bot user found", "user_id", user.Id)
+                
+                bName := botUsername
+                bDisplayName := botDisplayName
+                bDesc := botDescription
+
+                botPatch := &model.BotPatch{
+                        Username:    &bName,
+                        DisplayName: &bDisplayName,
+                        Description: &bDesc,
+                }
+                if _, err := p.API.PatchBot(user.Id, botPatch); err != nil {
+                        p.API.LogWarn("Failed to patch bot details", "error", err.Error())
+                }
+                
+                p.API.LogInfo("Bot user found and patched", "user_id", user.Id)
                 return nil
         }
 
-        // Create a new bot
+        // Create the bot
         bot := &model.Bot{
                 Username:    botUsername,
                 DisplayName: botDisplayName,
@@ -170,7 +86,7 @@ func (p *Plugin) ensureBot() error {
 
 // OnActivate is called by Mattermost when the plugin is activated.
 func (p *Plugin) OnActivate() error {
-        p.API.LogInfo("Jira Project Management plugin activating", "version", p.version, "commit", p.commit, "buildDate", p.buildDate)
+        p.API.LogInfo("Jira Project Management plugin activating", "version", p.version)
 
         config := p.API.GetConfig()
         dbDir := "."
@@ -188,7 +104,7 @@ func (p *Plugin) OnActivate() error {
         // Create/find bot user for notifications
         if err := p.ensureBot(); err != nil {
                 p.API.LogError("Failed to ensure bot user", "error", err.Error())
-                // Non-fatal: plugin can still work without bot notifications
+                // Don't fail activation, just log
         }
 
         p.API.LogInfo("Jira Project Management plugin activated successfully")
@@ -216,23 +132,22 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
                 return
         }
 
-        // Limit request body size to prevent abuse.
-        r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
-
         path := r.URL.Path
 
+
+
         // /api/v1/me
-        if path == "/api/v1/me" && r.Method == http.MethodGet {
+        if match(path, "/api/v1/me") && r.Method == http.MethodGet {
                 p.handleGetMe(w, r, userID)
                 return
         }
 
         // ---------- Projects ----------
         switch {
-        case path == "/api/v1/projects" && r.Method == http.MethodGet:
+        case match(path, "/api/v1/projects") && r.Method == http.MethodGet:
                 p.handleListProjects(w, r, userID)
                 return
-        case path == "/api/v1/projects" && r.Method == http.MethodPost:
+        case match(path, "/api/v1/projects") && r.Method == http.MethodPost:
                 p.handleCreateProject(w, r, userID)
                 return
         }
@@ -241,29 +156,29 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
         if rest, id, ok := extractID(path, "/api/v1/projects/"); ok {
                 switch {
                 case rest == "" && r.Method == http.MethodGet:
-                        p.handleGetProject(w, r, id, userID)
+                        p.handleGetProject(w, r, id)
                         return
                 case rest == "" && r.Method == http.MethodDelete:
-                        p.handleDeleteProject(w, r, id, userID)
+                        p.handleDeleteProject(w, r, id)
                         return
                 case rest == "/members" && r.Method == http.MethodPost:
-                        p.handleAddMembers(w, r, id, userID)
+                        p.handleAddMembers(w, r, id)
                         return
                 case rest == "/members" && r.Method == http.MethodGet:
-                        p.handleGetMembers(w, r, id, userID)
+                        p.handleGetMembers(w, r, id)
                         return
                 case rest == "/columns" && r.Method == http.MethodGet:
-                        p.handleGetColumns(w, r, id, userID)
+                        p.handleGetColumns(w, r, id)
                         return
                 case rest == "/columns" && r.Method == http.MethodPost:
-                        p.handleCreateColumn(w, r, id, userID)
+                        p.handleCreateColumn(w, r, id)
                         return
                 }
 
                 // /api/v1/projects/{id}/members/{userId}
                 if memberRest, memberUserID, ok := extractID(rest, "/members/"); ok && memberRest == "" {
                         if r.Method == http.MethodDelete {
-                                p.handleRemoveMember(w, r, id, memberUserID, userID)
+                                p.handleRemoveMember(w, r, id, memberUserID)
                                 return
                         }
                 }
@@ -271,7 +186,7 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
                 // /api/v1/projects/{id}/tasks
                 switch {
                 case rest == "/tasks" && r.Method == http.MethodGet:
-                        p.handleListTasks(w, r, id, userID)
+                        p.handleListTasks(w, r, id)
                         return
                 case rest == "/tasks" && r.Method == http.MethodPost:
                         p.handleCreateTask(w, r, id, userID)
@@ -282,11 +197,11 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
         // /api/v1/tasks/{id}
         if rest, taskID, ok := extractID(path, "/api/v1/tasks/"); ok && rest == "" {
                 if r.Method == http.MethodPatch {
-                        p.handleUpdateTask(w, r, taskID, userID)
+                        p.handleUpdateTask(w, r, taskID)
                         return
                 }
                 if r.Method == http.MethodDelete {
-                        p.handleDeleteTask(w, r, taskID, userID)
+                        p.handleDeleteTask(w, r, taskID)
                         return
                 }
         }
@@ -294,18 +209,18 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
         // /api/v1/columns/{id}
         if rest, colID, ok := extractID(path, "/api/v1/columns/"); ok && rest == "" {
                 if r.Method == http.MethodPut {
-                        p.handleUpdateColumn(w, r, colID, userID)
+                        p.handleUpdateColumn(w, r, colID)
                         return
                 }
                 if r.Method == http.MethodDelete {
-                        p.handleDeleteColumn(w, r, colID, userID)
+                        p.handleDeleteColumn(w, r, colID)
                         return
                 }
         }
 
         // /api/v1/users
-        if r.URL.Path == "/api/v1/users" && r.Method == http.MethodGet {
-                p.handleGetUsers(w, r, userID)
+        if path == "/api/v1/users" && r.Method == http.MethodGet {
+                p.handleGetUsers(w, r)
                 return
         }
 
@@ -335,27 +250,18 @@ func (p *Plugin) handleCreateProject(w http.ResponseWriter, r *http.Request, use
                 writeError(w, http.StatusBadRequest, "invalid request body")
                 return
         }
-
-        // Check EnableAdminOnly setting
-        if p.isAdminOnly() && !p.isUserSystemAdmin(userID) {
+        
+        user, err := p.API.GetUser(userID)
+        if err != nil || !strings.Contains(user.Roles, "system_admin") {
                 writeError(w, http.StatusForbidden, "only system admins can create projects")
                 return
         }
-        name := strings.TrimSpace(body.Name)
-        if name == "" {
+        if strings.TrimSpace(body.Name) == "" {
                 writeError(w, http.StatusBadRequest, "project name is required")
                 return
         }
-        if len(name) > maxProjectNameLen {
-                writeError(w, http.StatusBadRequest, fmt.Sprintf("project name must be at most %d characters", maxProjectNameLen))
-                return
-        }
-        if len(body.Description) > maxProjectDescLen {
-                writeError(w, http.StatusBadRequest, fmt.Sprintf("description must be at most %d characters", maxProjectDescLen))
-                return
-        }
 
-        proj, createErr := p.store.CreateProject(name, strings.TrimSpace(body.Description), userID)
+        proj, createErr := p.store.CreateProject(strings.TrimSpace(body.Name), body.Description, userID)
         if createErr != nil {
                 p.API.LogError("Failed to create project", "error", createErr.Error())
                 writeError(w, http.StatusInternalServerError, "failed to create project")
@@ -365,17 +271,7 @@ func (p *Plugin) handleCreateProject(w http.ResponseWriter, r *http.Request, use
         writeJSON(w, http.StatusCreated, proj)
 }
 
-func (p *Plugin) handleGetProject(w http.ResponseWriter, r *http.Request, id string, userID string) {
-        // Authorization: user must be a project member
-        if ok, err := p.store.IsProjectMember(id, userID); err != nil {
-                p.API.LogError("Failed to check membership", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to check membership")
-                return
-        } else if !ok {
-                writeError(w, http.StatusForbidden, "you are not a member of this project")
-                return
-        }
-
+func (p *Plugin) handleGetProject(w http.ResponseWriter, r *http.Request, id string) {
         proj, err := p.store.GetProject(id)
         if err != nil {
                 p.API.LogError("Failed to get project", "error", err.Error())
@@ -387,22 +283,62 @@ func (p *Plugin) handleGetProject(w http.ResponseWriter, r *http.Request, id str
                 return
         }
 
-        writeJSON(w, http.StatusOK, proj)
-}
+        // Also fetch tasks and members.
+        tasks, err := p.store.GetTasksByProject(id)
+        if err != nil {
+                p.API.LogError("Failed to get tasks", "error", err.Error())
+                writeError(w, http.StatusInternalServerError, "failed to get tasks")
+                return
+        }
 
-func (p *Plugin) handleDeleteProject(w http.ResponseWriter, r *http.Request, id string, userID string) {
-        // Authorization: only project admin or system admin can delete
-        if !p.isUserSystemAdmin(userID) {
-                if ok, err := p.store.IsProjectAdmin(id, userID); err != nil {
-                        p.API.LogError("Failed to check project admin", "error", err.Error())
-                        writeError(w, http.StatusInternalServerError, "failed to check permissions")
-                        return
-                } else if !ok {
-                        writeError(w, http.StatusForbidden, "only project admins can delete projects")
-                        return
+        members, err := p.store.GetProjectMembers(id)
+        if err != nil {
+                p.API.LogError("Failed to get members", "error", err.Error())
+                writeError(w, http.StatusInternalServerError, "failed to get members")
+                return
+        }
+
+        // Enrich members with Mattermost user info.
+        for _, m := range members {
+                user, appErr := p.API.GetUser(m.UserID)
+                if appErr == nil && user != nil {
+                        m.Username = user.Username
+                        m.DisplayName = user.GetDisplayName(model.ShowFullName)
                 }
         }
 
+        // Convert tasks to JSON-friendly form.
+        taskJSONs := make([]store.TaskJSON, len(tasks))
+        for i, t := range tasks {
+                taskJSONs[i] = t.ToJSON()
+        }
+
+        writeJSON(w, http.StatusOK, map[string]interface{}{
+                "project": proj,
+                "tasks":   taskJSONs,
+                "members": members,
+        })
+}
+
+func (p *Plugin) isProjectAdmin(projectID, userID string) bool {
+        members, err := p.store.GetProjectMembers(projectID)
+        if err != nil {
+                return false
+        }
+        for _, m := range members {
+                if m.UserID == userID && m.Role == "admin" {
+                        return true
+                }
+        }
+        return false
+}
+
+func (p *Plugin) handleDeleteProject(w http.ResponseWriter, r *http.Request, id string) {
+        userID := r.Header.Get("Mattermost-User-Id")
+        if !p.isProjectAdmin(id, userID) {
+                writeError(w, http.StatusForbidden, "Only project admins can delete a project")
+                return
+        }
         if err := p.store.DeleteProject(id); err != nil {
                 if err == sql.ErrNoRows {
                         writeError(w, http.StatusNotFound, "project not found")
@@ -420,17 +356,7 @@ func (p *Plugin) handleDeleteProject(w http.ResponseWriter, r *http.Request, id 
 // Member handlers
 // ========================================================================
 
-func (p *Plugin) handleGetMembers(w http.ResponseWriter, r *http.Request, projectID string, userID string) {
-        // Authorization: user must be a project member
-        if ok, err := p.store.IsProjectMember(projectID, userID); err != nil {
-                p.API.LogError("Failed to check membership", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to check membership")
-                return
-        } else if !ok {
-                writeError(w, http.StatusForbidden, "you are not a member of this project")
-                return
-        }
-
+func (p *Plugin) handleGetMembers(w http.ResponseWriter, r *http.Request, projectID string) {
         members, err := p.store.GetProjectMembers(projectID)
         if err != nil {
                 p.API.LogError("Failed to get members", "error", err.Error())
@@ -438,7 +364,6 @@ func (p *Plugin) handleGetMembers(w http.ResponseWriter, r *http.Request, projec
                 return
         }
 
-        // Fetch user info for each member.
         for _, m := range members {
                 user, appErr := p.API.GetUser(m.UserID)
                 if appErr == nil && user != nil {
@@ -450,19 +375,12 @@ func (p *Plugin) handleGetMembers(w http.ResponseWriter, r *http.Request, projec
         writeJSON(w, http.StatusOK, members)
 }
 
-func (p *Plugin) handleAddMembers(w http.ResponseWriter, r *http.Request, projectID string, userID string) {
-        // Authorization: only project admins (or system admins) can add new members
-        if !p.isUserSystemAdmin(userID) {
-                if ok, err := p.store.IsProjectAdmin(projectID, userID); err != nil {
-                        p.API.LogError("Failed to check project admin", "error", err.Error())
-                        writeError(w, http.StatusInternalServerError, "failed to check permissions")
-                        return
-                } else if !ok {
-                        writeError(w, http.StatusForbidden, "only project admins can add members")
-                        return
-                }
+func (p *Plugin) handleAddMembers(w http.ResponseWriter, r *http.Request, projectID string) {
+        userID := r.Header.Get("Mattermost-User-Id")
+        if !p.isProjectAdmin(projectID, userID) {
+                writeError(w, http.StatusForbidden, "Only project admins can add members")
+                return
         }
-
         var body struct {
                 MemberIDs []string `json:"member_ids"`
         }
@@ -474,18 +392,6 @@ func (p *Plugin) handleAddMembers(w http.ResponseWriter, r *http.Request, projec
                 writeError(w, http.StatusBadRequest, "memberIds is required and must not be empty")
                 return
         }
-        if len(body.MemberIDs) > maxMembersPerRequest {
-                writeError(w, http.StatusBadRequest, fmt.Sprintf("cannot add more than %d members at once", maxMembersPerRequest))
-                return
-        }
-
-        // Validate that all member IDs correspond to existing users
-        for _, uid := range body.MemberIDs {
-                if _, appErr := p.API.GetUser(uid); appErr != nil {
-                        writeError(w, http.StatusBadRequest, fmt.Sprintf("user %s not found", uid))
-                        return
-                }
-        }
 
         if err := p.store.AddProjectMembers(projectID, body.MemberIDs); err != nil {
                 p.API.LogError("Failed to add members", "error", err.Error())
@@ -496,42 +402,13 @@ func (p *Plugin) handleAddMembers(w http.ResponseWriter, r *http.Request, projec
         writeJSON(w, http.StatusOK, map[string]string{"status": "added"})
 }
 
-func (p *Plugin) handleRemoveMember(w http.ResponseWriter, r *http.Request, projectID, targetUserID, actorUserID string) {
-        // Authorization: only project admins or system admins can remove members
-        if !p.isUserSystemAdmin(actorUserID) {
-                if ok, err := p.store.IsProjectAdmin(projectID, actorUserID); err != nil {
-                        p.API.LogError("Failed to check project admin", "error", err.Error())
-                        writeError(w, http.StatusInternalServerError, "failed to check permissions")
-                        return
-                } else if !ok {
-                        writeError(w, http.StatusForbidden, "only project admins can remove members")
-                        return
-                }
+func (p *Plugin) handleRemoveMember(w http.ResponseWriter, r *http.Request, projectID, userID string) {
+        currentUserID := r.Header.Get("Mattermost-User-Id")
+        if !p.isProjectAdmin(projectID, currentUserID) {
+                writeError(w, http.StatusForbidden, "Only project admins can remove members")
+                return
         }
-
-        // Prevent removing the last admin
-        members, err := p.store.GetProjectMembers(projectID)
-        if err == nil {
-                adminCount := 0
-                for _, m := range members {
-                        if m.Role == "admin" {
-                                adminCount++
-                        }
-                }
-                isTargetAdmin := false
-                for _, m := range members {
-                        if m.UserID == targetUserID && m.Role == "admin" {
-                                isTargetAdmin = true
-                                break
-                        }
-                }
-                if isTargetAdmin && adminCount <= 1 {
-                        writeError(w, http.StatusForbidden, "cannot remove the last admin of a project")
-                        return
-                }
-        }
-
-        if err := p.store.RemoveProjectMember(projectID, targetUserID); err != nil {
+        if err := p.store.RemoveProjectMember(projectID, userID); err != nil {
                 if err == sql.ErrNoRows {
                         writeError(w, http.StatusNotFound, "membership not found")
                         return
@@ -548,17 +425,7 @@ func (p *Plugin) handleRemoveMember(w http.ResponseWriter, r *http.Request, proj
 // Task handlers
 // ========================================================================
 
-func (p *Plugin) handleListTasks(w http.ResponseWriter, r *http.Request, projectID string, userID string) {
-        // Authorization: user must be a project member
-        if ok, err := p.store.IsProjectMember(projectID, userID); err != nil {
-                p.API.LogError("Failed to check membership", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to check membership")
-                return
-        } else if !ok {
-                writeError(w, http.StatusForbidden, "you are not a member of this project")
-                return
-        }
-
+func (p *Plugin) handleListTasks(w http.ResponseWriter, r *http.Request, projectID string) {
         tasks, err := p.store.GetTasksByProject(projectID)
         if err != nil {
                 p.API.LogError("Failed to list tasks", "error", err.Error())
@@ -574,16 +441,6 @@ func (p *Plugin) handleListTasks(w http.ResponseWriter, r *http.Request, project
 }
 
 func (p *Plugin) handleCreateTask(w http.ResponseWriter, r *http.Request, projectID string, userID string) {
-        // Authorization: user must be a project member
-        if ok, err := p.store.IsProjectMember(projectID, userID); err != nil {
-                p.API.LogError("Failed to check membership", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to check membership")
-                return
-        } else if !ok {
-                writeError(w, http.StatusForbidden, "you are not a member of this project")
-                return
-        }
-
         var body struct {
                 Title       string `json:"title"`
                 Description string `json:"description"`
@@ -597,69 +454,28 @@ func (p *Plugin) handleCreateTask(w http.ResponseWriter, r *http.Request, projec
                 writeError(w, http.StatusBadRequest, "invalid request body")
                 return
         }
-        title := strings.TrimSpace(body.Title)
-        if title == "" {
+        if strings.TrimSpace(body.Title) == "" {
                 writeError(w, http.StatusBadRequest, "title is required")
                 return
         }
-        if len(title) > maxTaskTitleLen {
-                writeError(w, http.StatusBadRequest, fmt.Sprintf("title must be at most %d characters", maxTaskTitleLen))
-                return
-        }
-        if len(body.Description) > maxTaskDescLen {
-                writeError(w, http.StatusBadRequest, fmt.Sprintf("description must be at most %d characters", maxTaskDescLen))
-                return
-        }
 
-        // Validate priority
+        // Default priority.
         priority := body.Priority
         if priority == "" {
                 priority = "medium"
         }
-        if !validPriorityRe.MatchString(priority) {
-                writeError(w, http.StatusBadRequest, "priority must be one of: low, medium, high, critical")
-                return
-        }
 
-        // Validate due_date format (YYYY-MM-DD)
-        if body.DueDate != "" && !validDateRe.MatchString(body.DueDate) {
-                writeError(w, http.StatusBadRequest, "due_date must be in YYYY-MM-DD format")
-                return
-        }
-
-        // Validate due_time format (HH:MM)
-        if body.DueTime != "" && !validTimeRe.MatchString(body.DueTime) {
-                writeError(w, http.StatusBadRequest, "due_time must be in HH:MM format")
-                return
-        }
-
-        // Validate status against actual project columns
+        // Determine initial status
         status := body.Status
         if status == "" {
                 status = projectID + "-backlog"
         }
-        if !p.isValidColumnID(projectID, status) {
-                writeError(w, http.StatusBadRequest, "invalid status: must match an existing column in this project")
-                return
-        }
-
-        // Validate assignee is a project member (if specified)
         assigneeID := body.AssigneeID
-        if assigneeID != "" {
-                if ok, err := p.store.IsProjectMember(projectID, assigneeID); err != nil {
-                        p.API.LogError("Failed to check assignee membership", "error", err.Error())
-                        writeError(w, http.StatusInternalServerError, "failed to verify assignee")
-                        return
-                } else if !ok {
-                        writeError(w, http.StatusBadRequest, "assignee must be a member of this project")
-                        return
-                }
-        }
 
         task, err := p.store.CreateTask(
                 projectID,
                 strings.TrimSpace(body.Title),
-                strings.TrimSpace(body.Description),
+                body.Description,
                 body.DueDate,
                 body.DueTime,
                 priority,
@@ -678,40 +494,20 @@ func (p *Plugin) handleCreateTask(w http.ResponseWriter, r *http.Request, projec
                 if proj, err := p.store.GetProject(projectID); err == nil && proj != nil {
                         projectName = proj.Name
                 }
-                go p.sendTaskNotification(assigneeID, userID, projectName, title, priority)
+                go p.sendTaskNotification(assigneeID, userID, projectID, projectName, body.Title, priority, task.ID)
         }
         p.broadcastProjectUpdate(projectID)
         writeJSON(w, http.StatusCreated, task.ToJSON())
 }
 
-func (p *Plugin) handleUpdateTask(w http.ResponseWriter, r *http.Request, taskID string, userID string) {
-        // Authorization: user must be a member of the task's project
-        projectID, err := p.store.GetTaskProjectID(taskID)
-        if err != nil {
-                p.API.LogError("Failed to get task project", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to verify task ownership")
-                return
-        }
-        if projectID == "" {
-                writeError(w, http.StatusNotFound, "task not found")
-                return
-        }
-        if ok, err := p.store.IsProjectMember(projectID, userID); err != nil {
-                p.API.LogError("Failed to check membership", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to check membership")
-                return
-        } else if !ok {
-                writeError(w, http.StatusForbidden, "you are not a member of this project")
-                return
-        }
-
+func (p *Plugin) handleUpdateTask(w http.ResponseWriter, r *http.Request, taskID string) {
         var body map[string]interface{}
         if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
                 writeError(w, http.StatusBadRequest, "invalid request body")
                 return
         }
 
-        // Translate JSON keys to column names, with whitelist validation.
+        // Translate JSON keys to column names.
         updates := make(map[string]interface{})
         keyMap := map[string]string{
                 "title":       "title",
@@ -726,100 +522,6 @@ func (p *Plugin) handleUpdateTask(w http.ResponseWriter, r *http.Request, taskID
 
         for jsonKey, col := range keyMap {
                 if v, ok := body[jsonKey]; ok {
-                        // Defense-in-depth: validate column name against whitelist
-                        if !validTaskColumnRe.MatchString(col) {
-                                p.API.LogError("Rejected invalid column name", "column", col)
-                                continue
-                        }
-
-                        // Validate priority value
-                        if jsonKey == "priority" {
-                                valStr, ok := v.(string)
-                                if !ok || !validPriorityRe.MatchString(valStr) {
-                                        writeError(w, http.StatusBadRequest, "priority must be one of: low, medium, high, critical")
-                                        return
-                                }
-                                updates[col] = valStr
-                                continue
-                        }
-
-                        // Validate status value against actual columns
-                        if jsonKey == "status" {
-                                valStr, ok := v.(string)
-                                if !ok || !p.isValidColumnID(projectID, valStr) {
-                                        writeError(w, http.StatusBadRequest, "invalid status: must match an existing column in this project")
-                                        return
-                                }
-                                updates[col] = valStr
-                                continue
-                        }
-
-                        // Validate title length
-                        if jsonKey == "title" {
-                                valStr, _ := v.(string)
-                                if len(valStr) > maxTaskTitleLen {
-                                        writeError(w, http.StatusBadRequest, fmt.Sprintf("title must be at most %d characters", maxTaskTitleLen))
-                                        return
-                                }
-                        }
-
-                        // Validate description length
-                        if jsonKey == "description" {
-                                valStr, _ := v.(string)
-                                if len(valStr) > maxTaskDescLen {
-                                        writeError(w, http.StatusBadRequest, fmt.Sprintf("description must be at most %d characters", maxTaskDescLen))
-                                        return
-                                }
-                        }
-
-                        // Validate due_date format (YYYY-MM-DD)
-                        if jsonKey == "due_date" {
-                                valStr, ok := v.(string)
-                                if !ok {
-                                        writeError(w, http.StatusBadRequest, "due_date must be a string")
-                                        return
-                                }
-                                if valStr != "" && !validDateRe.MatchString(valStr) {
-                                        writeError(w, http.StatusBadRequest, "due_date must be in YYYY-MM-DD format")
-                                        return
-                                }
-                        }
-
-                        // Validate due_time format (HH:MM)
-                        if jsonKey == "due_time" {
-                                valStr, ok := v.(string)
-                                if !ok {
-                                        writeError(w, http.StatusBadRequest, "due_time must be a string")
-                                        return
-                                }
-                                if valStr != "" && !validTimeRe.MatchString(valStr) {
-                                        writeError(w, http.StatusBadRequest, "due_time must be in HH:MM format")
-                                        return
-                                }
-                        }
-
-                        // Validate assignee is a project member (skip null / empty = clear assignee)
-                        if jsonKey == "assignee_id" {
-                                switch val := v.(type) {
-                                case string:
-                                        if val != "" {
-                                                if ok, err := p.store.IsProjectMember(projectID, val); err != nil {
-                                                        p.API.LogError("Failed to check assignee membership", "error", err.Error())
-                                                        writeError(w, http.StatusInternalServerError, "failed to verify assignee")
-                                                        return
-                                                } else if !ok {
-                                                        writeError(w, http.StatusBadRequest, "assignee must be a member of this project")
-                                                        return
-                                                }
-                                        }
-                                case nil:
-                                        // null is allowed (clear assignee)
-                                default:
-                                        writeError(w, http.StatusBadRequest, "assignee_id must be a string or null")
-                                        return
-                                }
-                        }
-
                         // Convert sort_order to int.
                         if jsonKey == "sort_order" {
                                 switch val := v.(type) {
@@ -847,51 +549,34 @@ func (p *Plugin) handleUpdateTask(w http.ResponseWriter, r *http.Request, taskID
                 writeError(w, http.StatusInternalServerError, "failed to update task")
                 return
         }
-
-        // Re-index the task's column to prevent sort_order duplicates.
-        var taskStatus string
-        if err := p.store.DB().QueryRow("SELECT status FROM tasks WHERE id = ?", taskID).Scan(&taskStatus); err == nil {
-                if reindexErr := p.store.ReindexColumnTasks(projectID, taskStatus); reindexErr != nil {
-                        p.API.LogError("Failed to reindex column tasks", "error", reindexErr.Error())
-                        // Non-fatal: the update succeeded, ordering may be slightly off
-                }
+        if pid, err := p.store.GetTaskProjectID(taskID); err == nil {
+                p.broadcastProjectUpdate(pid)
         }
-
-        p.broadcastProjectUpdate(projectID, "task_updated")
         writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
 
-func (p *Plugin) handleDeleteTask(w http.ResponseWriter, r *http.Request, taskID string, userID string) {
-        // Authorization: user must be a member of the task's project
-        projectID, err := p.store.GetTaskProjectID(taskID)
+func (p *Plugin) handleDeleteTask(w http.ResponseWriter, r *http.Request, taskID string) {
+        userID := r.Header.Get("Mattermost-User-Id")
+
+        task, err := p.store.GetTask(taskID)
         if err != nil {
-                p.API.LogError("Failed to get task project", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to verify task ownership")
-                return
-        }
-        if projectID == "" {
                 writeError(w, http.StatusNotFound, "task not found")
                 return
         }
-        if ok, err := p.store.IsProjectMember(projectID, userID); err != nil {
-                p.API.LogError("Failed to check membership", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to check membership")
-                return
-        } else if !ok {
-                writeError(w, http.StatusForbidden, "you are not a member of this project")
+
+        // Check permissions: Must be project admin or the task assignee
+        if !p.isProjectAdmin(task.ProjectID, userID) && task.AssigneeID.String != userID {
+                writeError(w, http.StatusForbidden, "You can only delete your own tasks or must be a project admin")
                 return
         }
 
         if err := p.store.DeleteTask(taskID); err != nil {
-                if err == sql.ErrNoRows {
-                        writeError(w, http.StatusNotFound, "task not found")
-                        return
-                }
                 p.API.LogError("Failed to delete task", "error", err.Error())
                 writeError(w, http.StatusInternalServerError, "failed to delete task")
                 return
         }
-        p.broadcastProjectUpdate(projectID)
+        
+        p.broadcastProjectUpdate(task.ProjectID)
         writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
@@ -899,24 +584,27 @@ func (p *Plugin) handleDeleteTask(w http.ResponseWriter, r *http.Request, taskID
 // User handler
 // ========================================================================
 
-func (p *Plugin) handleGetUsers(w http.ResponseWriter, r *http.Request, userID string) {
-        // Paginate with server-side pagination support
+func (p *Plugin) handleGetUsers(w http.ResponseWriter, r *http.Request) {
+        // Paginate through all users.
+        var users []*model.User
         page := 0
         perPage := 200
-        if v := r.URL.Query().Get("page"); v != "" {
-                if n, err := strconv.Atoi(v); err == nil && n > 0 {
-                        page = n - 1 // 0-indexed internally
-                }
-        }
 
-        batch, appErr := p.API.GetUsers(&model.UserGetOptions{
-                Page:    page,
-                PerPage: perPage,
-        })
-        if appErr != nil {
-                p.API.LogError("Failed to get users", "error", appErr.Error())
-                writeError(w, http.StatusInternalServerError, "failed to get users")
-                return
+        for {
+                batch, appErr := p.API.GetUsers(&model.UserGetOptions{
+                        Page:    page,
+                        PerPage: perPage,
+                })
+                if appErr != nil {
+                        p.API.LogError("Failed to get users", "error", appErr.Error())
+                        writeError(w, http.StatusInternalServerError, "failed to get users")
+                        return
+                }
+                users = append(users, batch...)
+                if len(batch) < perPage {
+                        break
+                }
+                page++
         }
 
         // Return a lighter payload.
@@ -924,217 +612,19 @@ func (p *Plugin) handleGetUsers(w http.ResponseWriter, r *http.Request, userID s
                 ID          string `json:"id"`
                 Username    string `json:"username"`
                 DisplayName string `json:"display_name"`
+                Email       string `json:"email"`
         }
 
-        result := make([]userView, len(batch))
-        for i, u := range batch {
+        result := make([]userView, len(users))
+        for i, u := range users {
                 result[i] = userView{
                         ID:          u.Id,
                         Username:    u.Username,
                         DisplayName: u.GetDisplayName(model.ShowFullName),
+                        Email:       u.Email,
                 }
         }
         writeJSON(w, http.StatusOK, result)
-}
-
-// ========================================================================
-// Column handlers
-// ========================================================================
-
-func (p *Plugin) handleGetColumns(w http.ResponseWriter, r *http.Request, projectID string, userID string) {
-        // Authorization: user must be a project member
-        if ok, err := p.store.IsProjectMember(projectID, userID); err != nil {
-                p.API.LogError("Failed to check membership", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to check membership")
-                return
-        } else if !ok {
-                writeError(w, http.StatusForbidden, "you are not a member of this project")
-                return
-        }
-
-        columns, err := p.store.GetProjectColumns(projectID)
-        if err != nil {
-                p.API.LogError("Failed to get columns", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to get columns")
-                return
-        }
-        writeJSON(w, http.StatusOK, columns)
-}
-
-func (p *Plugin) handleCreateColumn(w http.ResponseWriter, r *http.Request, projectID string, userID string) {
-        // Authorization: only project admins (or system admins) can create columns
-        if !p.isUserSystemAdmin(userID) {
-                if ok, err := p.store.IsProjectAdmin(projectID, userID); err != nil {
-                        p.API.LogError("Failed to check project admin", "error", err.Error())
-                        writeError(w, http.StatusInternalServerError, "failed to check permissions")
-                        return
-                } else if !ok {
-                        writeError(w, http.StatusForbidden, "only project admins can create columns")
-                        return
-                }
-        }
-
-        var body struct {
-                Title string `json:"title"`
-                Color string `json:"color"`
-        }
-        if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-                writeError(w, http.StatusBadRequest, "invalid request body")
-                return
-        }
-        title := strings.TrimSpace(body.Title)
-        if title == "" {
-                writeError(w, http.StatusBadRequest, "column title is required")
-                return
-        }
-        if len(title) > maxColumnNameLen {
-                writeError(w, http.StatusBadRequest, fmt.Sprintf("column title must be at most %d characters", maxColumnNameLen))
-                return
-        }
-        // Sanitize color to prevent abuse
-        color := body.Color
-        if color == "" {
-                color = "#64748b"
-        }
-        if !validColorRe.MatchString(color) {
-                writeError(w, http.StatusBadRequest, "invalid color format")
-                return
-        }
-
-        col := &store.Column{
-                ProjectID: projectID,
-                Title:    title,
-                Color:    color,
-        }
-        // Force server-side ID generation (ignore any client-sent ID).
-        if err := p.store.CreateColumn(col); err != nil {
-                p.API.LogError("Failed to create column", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to create column")
-                return
-        }
-        // Re-fetch so timestamps are correct
-        columns, err := p.store.GetProjectColumns(projectID)
-        if err == nil {
-                for _, c := range columns {
-                        if c.ID == col.ID {
-                                p.broadcastProjectUpdate(projectID)
-                                writeJSON(w, http.StatusCreated, c)
-                                return
-                        }
-                }
-        }
-        // Fallback: return the column object (timestamps will be zero, but this is non-fatal)
-        p.API.LogInfo("Failed to re-fetch column after creation, returning basic column data")
-        p.broadcastProjectUpdate(projectID)
-        writeJSON(w, http.StatusCreated, col)
-}
-
-func (p *Plugin) handleUpdateColumn(w http.ResponseWriter, r *http.Request, colID string, userID string) {
-        // Authorization: only project admins (or system admins) can update columns
-        projectID, err := p.store.GetColumnProjectID(colID)
-        if err != nil {
-                p.API.LogError("Failed to get column project", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to verify column ownership")
-                return
-        }
-        if projectID == "" {
-                writeError(w, http.StatusNotFound, "column not found")
-                return
-        }
-        if !p.isUserSystemAdmin(userID) {
-                if ok, err := p.store.IsProjectAdmin(projectID, userID); err != nil {
-                        p.API.LogError("Failed to check project admin", "error", err.Error())
-                        writeError(w, http.StatusInternalServerError, "failed to check permissions")
-                        return
-                } else if !ok {
-                        writeError(w, http.StatusForbidden, "only project admins can update columns")
-                        return
-                }
-        }
-
-        var req struct {
-                Title     string `json:"title"`
-                Color     string `json:"color"`
-                SortOrder *int   `json:"sort_order"`
-        }
-        if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-                writeError(w, http.StatusBadRequest, "invalid request body")
-                return
-        }
-        title := strings.TrimSpace(req.Title)
-        if title == "" {
-                writeError(w, http.StatusBadRequest, "column title is required")
-                return
-        }
-        if len(title) > maxColumnNameLen {
-                writeError(w, http.StatusBadRequest, fmt.Sprintf("column title must be at most %d characters", maxColumnNameLen))
-                return
-        }
-        // Validate color format if provided
-        if req.Color != "" && !validColorRe.MatchString(req.Color) {
-                writeError(w, http.StatusBadRequest, "invalid color format")
-                return
-        }
-
-        if err := p.store.UpdateColumn(colID, title, req.Color, req.SortOrder); err != nil {
-                if err == sql.ErrNoRows {
-                        writeError(w, http.StatusNotFound, "column not found")
-                        return
-                }
-                p.API.LogError("Failed to update column", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to update column")
-                return
-        }
-        p.broadcastProjectUpdate(projectID)
-        writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
-}
-
-func (p *Plugin) handleDeleteColumn(w http.ResponseWriter, r *http.Request, colID string, userID string) {
-        // Authorization: only project admins (or system admins) can delete columns
-        projectID, err := p.store.GetColumnProjectID(colID)
-        if err != nil {
-                p.API.LogError("Failed to get column project", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to verify column ownership")
-                return
-        }
-        if projectID == "" {
-                writeError(w, http.StatusNotFound, "column not found")
-                return
-        }
-        if !p.isUserSystemAdmin(userID) {
-                if ok, err := p.store.IsProjectAdmin(projectID, userID); err != nil {
-                        p.API.LogError("Failed to check project admin", "error", err.Error())
-                        writeError(w, http.StatusInternalServerError, "failed to check permissions")
-                        return
-                } else if !ok {
-                        writeError(w, http.StatusForbidden, "only project admins can delete columns")
-                        return
-                }
-        }
-
-        // Server-side check: refuse to delete column that still has tasks.
-        taskCount, err := countTasksByColumn(p.store.DB(), colID)
-        if err != nil {
-                p.API.LogError("Failed to count tasks in column", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to check column tasks")
-                return
-        }
-        if taskCount > 0 {
-                writeError(w, http.StatusConflict, "cannot delete a column that still contains tasks")
-                return
-        }
-
-        if err := p.store.DeleteColumn(colID); err != nil {
-                if err == sql.ErrNoRows {
-                        writeError(w, http.StatusNotFound, "column not found")
-                        return
-                }
-                p.API.LogError("Failed to delete column", "error", err.Error())
-                writeError(w, http.StatusInternalServerError, "failed to delete column")
-                return
-        }
-        p.broadcastProjectUpdate(projectID)
-        writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
 // ========================================================================
@@ -1149,10 +639,11 @@ func writeJSON(w http.ResponseWriter, code int, data interface{}) {
         }
 }
 
-// handleGetMe returns the current user info.
+// ---------- Me Handler ----------
+
 func (p *Plugin) handleGetMe(w http.ResponseWriter, r *http.Request, userID string) {
         user, err := p.API.GetUser(userID)
-        if err != nil || user == nil {
+        if err != nil {
                 writeError(w, http.StatusInternalServerError, "failed to get user")
                 return
         }
@@ -1162,9 +653,85 @@ func (p *Plugin) handleGetMe(w http.ResponseWriter, r *http.Request, userID stri
         })
 }
 
+// ---------- Column Handlers ----------
+
+func (p *Plugin) handleGetColumns(w http.ResponseWriter, r *http.Request, projectID string) {
+        columns, err := p.store.GetProjectColumns(projectID)
+        if err != nil {
+                p.API.LogError("Failed to get columns", "error", err.Error())
+                writeError(w, http.StatusInternalServerError, "failed to get columns")
+                return
+        }
+        writeJSON(w, http.StatusOK, columns)
+}
+
+func (p *Plugin) handleCreateColumn(w http.ResponseWriter, r *http.Request, projectID string) {
+        var col store.Column
+        if err := json.NewDecoder(r.Body).Decode(&col); err != nil {
+                writeError(w, http.StatusBadRequest, "invalid request body")
+                return
+        }
+        col.ProjectID = projectID
+        if strings.TrimSpace(col.Title) == "" {
+                writeError(w, http.StatusBadRequest, "column title is required")
+                return
+        }
+
+        if err := p.store.CreateColumn(&col); err != nil {
+                p.API.LogError("Failed to create column", "error", err.Error())
+                writeError(w, http.StatusInternalServerError, "failed to create column")
+                return
+        }
+        p.broadcastProjectUpdate(projectID)
+        writeJSON(w, http.StatusCreated, col)
+}
+
+func (p *Plugin) handleUpdateColumn(w http.ResponseWriter, r *http.Request, colID string) {
+        var req struct {
+                Title     string `json:"title"`
+                Color     string `json:"color"`
+                SortOrder *int   `json:"sort_order"`
+                ProjectID string `json:"project_id"`
+        }
+        if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+                writeError(w, http.StatusBadRequest, "invalid request body")
+                return
+        }
+
+        if err := p.store.UpdateColumn(colID, req.Title, req.Color, req.SortOrder); err != nil {
+                p.API.LogError("Failed to update column", "error", err.Error())
+                writeError(w, http.StatusInternalServerError, "failed to update column")
+                return
+        }
+        if req.ProjectID != "" {
+                p.broadcastProjectUpdate(req.ProjectID)
+        }
+        writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+func (p *Plugin) handleDeleteColumn(w http.ResponseWriter, r *http.Request, colID string) {
+        projectID := r.URL.Query().Get("project_id")
+        
+        if err := p.store.DeleteColumn(colID); err != nil {
+                p.API.LogError("Failed to delete column", "error", err.Error())
+                writeError(w, http.StatusInternalServerError, "failed to delete column")
+                return
+        }
+        
+        if projectID != "" {
+                p.broadcastProjectUpdate(projectID)
+        }
+        writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
 // writeError writes a JSON error payload.
 func writeError(w http.ResponseWriter, code int, msg string) {
         writeJSON(w, code, map[string]string{"error": msg})
+}
+
+// match checks if path equals the given pattern exactly.
+func match(path, pattern string) bool {
+        return path == pattern
 }
 
 // extractID tries to split path as prefix+"/"+id+remainder.
@@ -1181,20 +748,16 @@ func extractID(path, prefix string) (rest string, id string, ok bool) {
         return "", remaining, true
 }
 
-func (p *Plugin) broadcastProjectUpdate(projectID string, eventType ...string) {
-        data := map[string]interface{}{"project_id": projectID}
-        if len(eventType) > 0 {
-                data["event_type"] = eventType[0]
-        }
+func (p *Plugin) broadcastProjectUpdate(projectID string) {
         p.API.PublishWebSocketEvent(
-                wsEventProjectUpdated,
-                data,
+                "project_updated",
+                map[string]interface{}{"project_id": projectID},
                 &model.WebsocketBroadcast{},
         )
 }
 
 // sendTaskNotification sends a DM from the bot to the assignee when a task is assigned.
-func (p *Plugin) sendTaskNotification(assigneeID, creatorID, projectName, taskTitle, taskPriority string) {
+func (p *Plugin) sendTaskNotification(assigneeID, creatorID, projectID, projectName, taskTitle, taskPriority, taskID string) {
         if assigneeID == "" || p.botUserID == "" {
                 return
         }
@@ -1216,33 +779,68 @@ func (p *Plugin) sendTaskNotification(assigneeID, creatorID, projectName, taskTi
         }
 
         priorityLabel := "متوسط"
-        priorityIcon := "📌"
+        priorityIcon := "🔵"
+        colorCode := "#3498db" // Blue
         switch taskPriority {
         case "low":
                 priorityLabel = "منخفض"
                 priorityIcon = "🟢"
+                colorCode = "#2ecc71" // Green
         case "high":
                 priorityLabel = "عالي"
-                priorityIcon = "🟡"
+                priorityIcon = "🟠"
+                colorCode = "#f39c12" // Orange
         case "critical":
                 priorityLabel = "حرج"
                 priorityIcon = "🔴"
+                colorCode = "#e74c3c" // Red
         }
 
         post := &model.Post{
                 ChannelId: channel.Id,
                 UserId:    p.botUserID,
-                Message: fmt.Sprintf(
-                        "%s **لديك مهمة جديدة**\n\n"+
-                                "**المشروع:** %s\n"+
-                                "**المهمة:** %s\n"+
-                                "**الأولوية:** %s %s\n"+
-                                "**تم التعيين بواسطة:** %s",
-                        priorityIcon, projectName, taskTitle, priorityIcon, priorityLabel, creatorName,
-                ),
         }
+        compactText := fmt.Sprintf("**المشروع:** %s  |  **الأولوية:** %s %s  |  **بواسطة:** 👤 %s", 
+                projectName, priorityIcon, priorityLabel, creatorName)
+
+        attachment := &model.SlackAttachment{
+                Fallback: fmt.Sprintf("مهمة جديدة: %s", taskTitle),
+                Color:    colorCode,
+                Title:    fmt.Sprintf("📝 %s", taskTitle),
+                Pretext:  "**لقد تم تعيين مهمة جديدة لك!**",
+                Text:     compactText,
+        }
+
+        post.AddProp("attachments", []*model.SlackAttachment{attachment})
 
         if _, appErr = p.API.CreatePost(post); appErr != nil {
                 p.API.LogError("Failed to send task notification", "error", appErr.Error())
         }
+}
+
+// MessageWillBePosted intercepts messages before they are posted to block direct messages to the bot.
+func (p *Plugin) MessageWillBePosted(c *plugin.Context, post *model.Post) (*model.Post, string) {
+	// If the bot hasn't been initialized yet, just allow everything
+	if p.botUserID == "" {
+		return post, ""
+	}
+
+	channel, appErr := p.API.GetChannel(post.ChannelId)
+	if appErr != nil {
+		return post, ""
+	}
+
+	// Check if this is a Direct Message channel
+	if channel.Type == model.ChannelTypeDirect {
+		// A DM channel name is made of the two user IDs joined by "__"
+		// If the channel name contains our bot's ID, it means someone is messaging the bot
+		if strings.Contains(channel.Name, p.botUserID) {
+			// If the sender is NOT the bot itself, block the message
+			if post.UserId != p.botUserID {
+				return nil, "عذراً، هذا البوت مخصص للإشعارات التلقائية فقط ولا يمكن مراسلته."
+			}
+		}
+	}
+
+	return post, ""
 }

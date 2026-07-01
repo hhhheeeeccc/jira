@@ -1,6 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
-import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
 
@@ -8,16 +7,11 @@ export const DeleteProjectDialog: React.FC = () => {
     const {
         deleteProjectInfo,
         setDeleteProjectInfo,
+        projects,
         setProjects,
         setSelectedProject,
-        setProjectMembers,
-        setProjectTasks,
-        setProjectColumns,
         setError,
     } = useStore();
-
-    const dialogRef = useRef<HTMLDivElement>(null);
-    useFocusTrap(dialogRef, true);
 
     const [submitting, setSubmitting] = useState(false);
 
@@ -32,32 +26,9 @@ export const DeleteProjectDialog: React.FC = () => {
         setError(null);
         try {
             await api.deleteProject(deleteProjectInfo.id);
-            // Re-fetch projects from server for consistency
-            const freshProjects: any[] = await api.getProjects();
-            const validProjects = Array.isArray(freshProjects) ? freshProjects : [];
-            setProjects(validProjects);
-            // Auto-select first remaining project
-            if (validProjects.length > 0) {
-                setSelectedProject(validProjects[0]);
-                // Load data for the auto-selected project
-                try {
-                    const [membersData, tasksData, columnsData] = await Promise.all([
-                        api.getProjectMembers(validProjects[0].id),
-                        api.getProjectTasks(validProjects[0].id),
-                        api.getProjectColumns(validProjects[0].id),
-                    ]);
-                    setProjectMembers(Array.isArray(membersData) ? membersData : []);
-                    setProjectTasks(Array.isArray(tasksData) ? tasksData : []);
-                    setProjectColumns(Array.isArray(columnsData) ? columnsData : []);
-                } catch (loadErr: any) {
-                    // Non-fatal
-                }
-            } else {
-                setSelectedProject(null);
-                setProjectMembers([]);
-                setProjectTasks([]);
-                setProjectColumns([]);
-            }
+            const updatedProjects = projects.filter(p => p.id !== deleteProjectInfo.id);
+            setProjects(updatedProjects);
+            setSelectedProject(updatedProjects.length > 0 ? updatedProjects[0] : null);
             handleClose();
         } catch (err: any) {
             setError(err.message || 'فشل حذف المشروع');
@@ -67,8 +38,8 @@ export const DeleteProjectDialog: React.FC = () => {
     };
 
     return (
-        <div className="modal-overlay" onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
-            <div className="modal-dialog1" ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={handleClose}>
+            <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--mm-error-text)' }}>
                         <AlertTriangle size={24} />
@@ -90,10 +61,10 @@ export const DeleteProjectDialog: React.FC = () => {
                     <button type="button" className="btn btn-ghost" onClick={handleClose} disabled={submitting}>
                         إلغاء
                     </button>
-                    <button
-                        type="button"
+                    <button 
+                        type="button" 
                         onClick={handleDelete}
-                        className="btn btn-danger"
+                        className="btn btn-danger" 
                         disabled={submitting}
                     >
                         {submitting ? 'جارٍ الحذف...' : 'موافق'}

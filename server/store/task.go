@@ -3,7 +3,6 @@ package store
 import (
         "database/sql"
         "fmt"
-        "strings"
         "time"
 )
 
@@ -63,20 +62,13 @@ func (t *Task) ToJSON() TaskJSON {
 
 // CreateTask inserts a new task. The sort_order is set to MAX(sort_order)+1 for
 // tasks sharing the same (project_id, status).
-// Uses a transaction to prevent sort_order collisions under concurrent creates.
 func (s *Store) CreateTask(projectID, title, description, dueDate, dueTime, priority, status, assigneeID string) (*Task, error) {
         id := newID()
         now := time.Now().UTC()
 
-        tx, err := s.db.Begin()
-        if err != nil {
-                return nil, fmt.Errorf("begin tx: %w", err)
-        }
-        defer tx.Rollback()
-
         // Determine sort_order: max existing + 1 for the same project+status.
         var maxOrder sql.NullInt64
-        err = tx.QueryRow(
+        err := s.db.QueryRow(
                 `SELECT MAX(sort_order) FROM tasks WHERE project_id = ? AND status = ?`,
                 projectID, status,
         ).Scan(&maxOrder)
@@ -94,7 +86,7 @@ func (s *Store) CreateTask(projectID, title, description, dueDate, dueTime, prio
                 assignee = sql.NullString{String: assigneeID, Valid: true}
         }
 
-        _, err = tx.Exec(
+        _, err = s.db.Exec(
                 `INSERT INTO tasks
                  (id, title, description, due_date, due_time, priority, status, sort_order, project_id, assignee_id, created_at, updated_at)
                  VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -103,10 +95,6 @@ func (s *Store) CreateTask(projectID, title, description, dueDate, dueTime, prio
         )
         if err != nil {
                 return nil, fmt.Errorf("insert task: %w", err)
-        }
-
-        if err := tx.Commit(); err != nil {
-                return nil, fmt.Errorf("commit tx: %w", err)
         }
 
         return &Task{
@@ -126,13 +114,30 @@ func (s *Store) CreateTask(projectID, title, description, dueDate, dueTime, prio
 }
 
 // GetTaskProjectID returns the project_id for a given task
-func (s *Store) GetTaskProjectID(taskID string) (string, error) {
-        var projectID string
-        err := s.db.QueryRow(`SELECT project_id FROM tasks WHERE id = ?`, taskID).Scan(&projectID)
+func (s *Store) GetTask(taskID string) (*Task, error) {
+        var t Task
+        err := s.db.QueryRow(
+                `SELECT id, title, description, due_date, due_time, priority, status,
+                        sort_order, project_id, assignee_id, created_at, updated_at
+                 FROM tasks WHERE id = ?`,
+                taskID,
+        ).Scan(
+                &t.ID, &t.Title, &t.Description, &t.DueDate, &t.DueTime, &t.Priority, &t.Status,
+                &t.SortOrder, &t.ProjectID, &t.AssigneeID, &t.CreatedAt, &t.UpdatedAt,
+        )
         if err != nil {
-                return "", fmt.Errorf("get task project_id: %w", err)
+                return nil, err
         }
-        return projectID, nil
+        return &t, nil
+}
+
+func (s *Store) GetTaskProjectID(taskID string) (string, error) {
+	var projectID string
+	err := s.db.QueryRow(`SELECT project_id FROM tasks WHERE id = ?`, taskID).Scan(&projectID)
+	if err != nil {
+		return "", fmt.Errorf("get task project_id: %w", err)
+	}
+	return projectID, nil
 }
 
 // GetTasksByProject returns every task for a project, ordered by sort_order.
@@ -167,9 +172,9 @@ func (s *Store) UpdateTask(id string, updates map[string]interface{}) error {
                 return nil
         }
 
-        // If status is being set to a backlog column, force-assignee to NULL.
+        // If status is being set to backlog, force-assignee to NULL.
         if statusVal, ok := updates["status"]; ok {
-                if s, ok := statusVal.(string); ok && strings.HasSuffix(s, "-backlog") {
+                if s, ok := statusVal.(string); ok && s == "backlog" {
                         updates["assignee_id"] = nil
                 }
         }
@@ -186,7 +191,7 @@ func (s *Store) UpdateTask(id string, updates map[string]interface{}) error {
         }
         args = append(args, id)
 
-        query := "UPDATE tasks SET " + strings.Join(setParts, ", ") + " WHERE id = ?"
+        query := "UPDATE tasks SET " + join(setParts, ", ") + " WHERE id = ?"
         res, err := s.db.Exec(query, args...)
         if err != nil {
                 return fmt.Errorf("update task: %w", err)
@@ -211,47 +216,6 @@ func (s *Store) DeleteTask(id string) error {
         return nil
 }
 
-// ReindexColumnTasks re-assigns sequential sort_order values (0, 1, 2, ...)
-// to all tasks in the given column (projectID + status combination).
-// Uses updated_at DESC as tiebreaker so recently-moved tasks are placed before
-// others with the same sort_order.
-func (s *Store) ReindexColumnTasks(projectID, status string) error {
-        rows, err := s.db.Query(
-                `SELECT id FROM tasks WHERE project_id = ? AND status = ? ORDER BY sort_order ASC, updated_at DESC`,
-                projectID, status,
-        )
-        if err != nil {
-                return fmt.Errorf("reindex query: %w", err)
-        }
-        defer rows.Close()
-
-        var taskIDs []string
-        for rows.Next() {
-                var id string
-                if err := rows.Scan(&id); err != nil {
-                        return fmt.Errorf("reindex scan: %w", err)
-                }
-                taskIDs = append(taskIDs, id)
-        }
-        if err := rows.Err(); err != nil {
-                return err
-        }
-
-        tx, err := s.db.Begin()
-        if err != nil {
-                return fmt.Errorf("reindex begin tx: %w", err)
-        }
-        defer tx.Rollback()
-
-        for i, id := range taskIDs {
-                if _, err := tx.Exec(`UPDATE tasks SET sort_order = ? WHERE id = ?`, i, id); err != nil {
-                        return fmt.Errorf("reindex update: %w", err)
-                }
-        }
-
-        return tx.Commit()
-}
-
 // ----------- helpers -----------
 
 func scanTask(rows *sql.Rows) (*Task, error) {
@@ -270,4 +234,13 @@ func scanTask(rows *sql.Rows) (*Task, error) {
         return t, nil
 }
 
-
+func join(parts []string, sep string) string {
+        result := ""
+        for i, p := range parts {
+                if i > 0 {
+                        result += sep
+                }
+                result += p
+        }
+        return result
+}

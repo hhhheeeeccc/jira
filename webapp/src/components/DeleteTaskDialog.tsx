@@ -1,13 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
-import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useStore } from '../store/useStore';
 import { api } from '../api/client';
 
 export const DeleteTaskDialog: React.FC = () => {
-    const dialogRef = useRef<HTMLDivElement>(null);
-    useFocusTrap(dialogRef, true);
-
     const {
         deleteTaskInfo,
         setDeleteTaskInfo,
@@ -30,14 +26,7 @@ export const DeleteTaskDialog: React.FC = () => {
         setError(null);
         try {
             await api.deleteTask(deleteTaskInfo.id);
-            // Re-fetch tasks from server for consistency
-            try {
-                const updatedTasks = await api.getProjectTasks(selectedProject.id);
-                setProjectTasks(Array.isArray(updatedTasks) ? updatedTasks : []);
-            } catch (refErr: any) {
-                // Fallback to local filter
-                setProjectTasks(projectTasks.filter(t => t.id !== deleteTaskInfo.id));
-            }
+            setProjectTasks(projectTasks.filter(t => t.id !== deleteTaskInfo.id));
             handleClose();
         } catch (err: any) {
             setError(err.message || 'فشل حذف المهمة');
@@ -47,8 +36,8 @@ export const DeleteTaskDialog: React.FC = () => {
     };
 
     return (
-        <div className="modal-overlay" onClick={handleClose} onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}>
-            <div className="modal-dialog1" ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={handleClose}>
+            <div className="modal-dialog1" onClick={e => e.stopPropagation()}>
                 <div className="modal-dialog1__header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--mm-error-text)' }}>
                         <AlertTriangle size={24} />

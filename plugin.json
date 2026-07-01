@@ -2,8 +2,8 @@
   "id": "com.workspace.plugin.jira",
   "name": "إدارة مشاريع جيرا",
   "description": "إدارة مشاريع بأسلوب جيرا مع لوحات كانبان - مدمجة مع مستخدمي النظام",
-  "version": "1.3.0",
-  "min_server_version": "7.0.0",
+  "version": "1.0.0",
+  "min_server_version": "6.0.0",
   "server": {
     "executables": {
       "linux-amd64": "server/dist/plugin-linux-amd64"

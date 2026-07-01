@@ -18,20 +18,24 @@ import { type Task, type TaskStatus } from '../types';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskCard } from './TaskCard';
 
-interface KanbanBoardProps {
-    filteredTasks?: Task[];
-}
-
-export const KanbanBoard: React.FC<KanbanBoardProps> = ({ filteredTasks }) => {
+export const KanbanBoard: React.FC = () => {
     const {
         selectedProject,
         projectTasks,
-        setProjectTasks,
         projectMembers,
         projectColumns,
+        setProjectTasks,
+        setProjectColumns,
         setShowAddColumnDialog,
         setError,
+        currentUser,
     } = useStore();
+
+    const isProjectAdmin = React.useMemo(() => {
+        if (!currentUser || !selectedProject) return false;
+        const member = projectMembers.find(m => m.user_id === currentUser.id);
+        return member?.role === 'admin';
+    }, [currentUser, selectedProject, projectMembers]);
 
     const [activeTask, setActiveTask] = React.useState<Task | null>(null);
     const [activeOverColumnId, setActiveOverColumnId] = React.useState<string | null>(null);
@@ -44,12 +48,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ filteredTasks }) => {
         })
     );
 
-    const tasksToUse = filteredTasks || projectTasks;
-
     const getColumnTasks = (columnId: string): Task[] => {
-        return tasksToUse
+        return projectTasks
             .filter(t => t.status === columnId)
             .sort((a, b) => a.sort_order - b.sort_order);
+    };
+
+    const getColumnTaskIds = (columnId: string): string[] => {
+        return getColumnTasks(columnId).map(t => t.id);
     };
 
     const handleAddColumn = () => {
@@ -58,7 +64,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ filteredTasks }) => {
     };
 
     const handleDragStart = (event: DragStartEvent) => {
-        const task = tasksToUse.find(t => t.id === event.active.id);
+        const task = projectTasks.find(t => t.id === event.active.id);
         if (task) {
             setActiveTask(task);
         }
@@ -80,7 +86,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ filteredTasks }) => {
         if (!over) return;
 
         const taskId = active.id as string;
-        const task = tasksToUse.find(t => t.id === taskId);
+        const task = projectTasks.find(t => t.id === taskId);
         if (!task) return;
 
         // Determine the target column
@@ -107,27 +113,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ filteredTasks }) => {
         if (task.status !== targetColumnId) {
             updates.status = targetColumnId as TaskStatus;
 
-            // When dragging to a backlog column, clear assignee
-            if (targetColumnId.endsWith('-backlog')) {
+            // When dragging to backlog, clear assignee
+            if (targetColumnId === 'backlog') {
                 updates.assignee_id = null;
             }
         }
 
-        // Calculate new sort order
+        // Calculate new sort order if dropped on a specific task
         if (over.data?.current?.type === 'task' && over.id !== active.id) {
-            // Dropped on a specific task: place before it
             const overTask = projectTasks.find(t => t.id === over.id);
             if (overTask) {
                 updates.sort_order = overTask.sort_order;
             }
-        } else if (task.status !== targetColumnId) {
-            // Dropped on a column (not a task): place at end
-            const targetColumnTasks = projectTasks
-                .filter(t => t.status === targetColumnId)
-                .sort((a, b) => a.sort_order - b.sort_order);
-            updates.sort_order = targetColumnTasks.length > 0
-                ? targetColumnTasks[targetColumnTasks.length - 1].sort_order + 1
-                : 0;
         }
 
         try {
@@ -163,30 +160,32 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ filteredTasks }) => {
                     />
                 ))}
 
-                <div className="add-column-container" style={{ minWidth: 280, padding: '0 8px' }}>
-                    <button 
-                        onClick={handleAddColumn}
-                        style={{
-                            width: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 8,
-                            padding: '12px',
-                            background: 'var(--mm-surface)',
-                            border: '1px dashed var(--mm-border)',
-                            borderRadius: 'var(--mm-radius)',
-                            color: 'var(--mm-text-muted)',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--mm-text-muted)'}
-                        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--mm-border)'}
-                    >
-                        <Plus size={16} />
-                        <span>إضافة عمود</span>
-                    </button>
-                </div>
+                {isProjectAdmin && (
+                    <div className="add-column-container" style={{ minWidth: 280, padding: '0 8px' }}>
+                        <button 
+                            onClick={handleAddColumn}
+                            style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 8,
+                                padding: '12px',
+                                background: 'var(--mm-surface)',
+                                border: '1px dashed var(--mm-border)',
+                                borderRadius: 'var(--mm-radius)',
+                                color: 'var(--mm-text-muted)',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--mm-text-muted)'}
+                            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--mm-border)'}
+                        >
+                            <Plus size={16} />
+                            <span>إضافة عمود</span>
+                        </button>
+                    </div>
+                )}
 
                 <DragOverlay dropAnimation={{
                     duration: 250,
